@@ -1,43 +1,51 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
-  <meta charset="UTF-8">
-  <title>會員登入</title>
+    <meta charset="UTF-8">
+    <title>會員登入</title>
 </head>
+
 <body>
-  <div class="login-box">
-    <h2>會員登入</h2>
-    <form id="loginForm">
-      <input type="text" id="phone" placeholder="請輸入行動電話">
-      <input type="text" id="birthday" placeholder="請輸入生日 (例如民國64年5月15日，請輸入0640515)">
-      <button type="submit">登入</button>
-    </form>
-    <div id="loginResult"></div>
-  </div>
+    <div class="login-box">
+        <h2>會員登入</h2>
+        <form id="loginForm">
+            <input type="text" id="phone" placeholder="請輸入行動電話">
+            <input type="text" id="birthday" placeholder="請輸入生日 (例如0640515)">
+            <button type="submit">登入</button>
+        </form>
+        <div id="loginResult"></div>
+    </div>
+    <script>
+    document.getElementById("loginForm").addEventListener("submit", async function(e) {
+        e.preventDefault(); // 🚫 避免表單自動刷新
 
-  <script>
-    const form = document.getElementById("loginForm");
-    const resultDiv = document.getElementById("loginResult");
+        const phone = document.getElementById("phone").value.trim();
+        const birthday = document.getElementById("birthday").value.trim();
+        const resultDiv = document.getElementById("loginResult");
 
-    form.addEventListener("submit", function(event) {
-      event.preventDefault();
+        resultDiv.innerText = "登入中...";
 
-      const phone = document.getElementById("phone").value;
-      const birthday = document.getElementById("birthday").value;
+        try {
+            const res = await fetch("https://script.google.com/macros/s/AKfycbxxxx/exec", {
+                method: "POST",
+                body: JSON.stringify({ phone, birthday }),
+                headers: { "Content-Type": "application/json" }
+            });
 
-      fetch("https://script.google.com/macros/s/AKfycbydG229CZWFTa3UHFIZampfQoZvvkzwlcfEYJ9vBQd0k0Ghmn8bE7tUP9ladV3sVA8LBA/exec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, birthday })
-      })
-      .then(response => response.text())
-      .then(data => {
-        resultDiv.innerText = data;
-      })
-      .catch(err => {
-        resultDiv.innerText = "登入失敗：" + err;
-      });
+            const data = await res.json();
+            if (data.result) {
+                resultDiv.innerHTML = `<span style="color:green">${data.result}</span>`;
+            } else if (data.error) {
+                resultDiv.innerHTML = `<span style="color:red">錯誤：${data.error}</span>`;
+            } else {
+                resultDiv.innerHTML = `<span style="color:red">登入失敗，請檢查帳號與密碼</span>`;
+            }
+        } catch (err) {
+            resultDiv.innerHTML = `<span style="color:red">連線失敗：${err.message}</span>`;
+        }
     });
-  </script>
+    </script>
 </body>
+
 </html>
