@@ -19,7 +19,7 @@
     // ------------------------------------------------------------------
     const form = document.getElementById('loginForm');
     const resultDiv = document.getElementById('loginResult');
-    // 💡 請確保這是您部署後最新的 /exec URL
+    // 💡 請替換成您的實際 /exec URL
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyvIXS-clVEv78Um5sFNX3wOy7rSU7Xii9cNJjtdpv2iLlEH9zUo5mO8-ldTNFzTy3o_w/exec";
     
     // 儲存超時計時器的 ID
@@ -38,36 +38,41 @@
     window.handleLoginResponse = function(data) {
         const submitButton = form.querySelector('button[type="submit"]');
 
-        // 1. 清除超時計時器與按鈕禁用狀態
-        if (timeoutId !== null) {
-            clearTimeout(timeoutId);
-            timeoutId = null;
-        }
-        if (submitButton) {
-            submitButton.disabled = false;
-        }
+        // 核心修正：將所有狀態更新包裝在 setTimeout(..., 0) 裡
+        // 這會將任務推入事件隊列尾部，確保在瀏覽器處理其他延遲任務前執行。
+        setTimeout(() => { 
+            // 1. 清除超時計時器與按鈕禁用狀態
+            if (timeoutId !== null) {
+                clearTimeout(timeoutId);
+                timeoutId = null;
+            }
+            if (submitButton) {
+                submitButton.disabled = false;
+            }
 
-        const scriptElement = document.getElementById('jsonpScript');
-        if (scriptElement) {
-            scriptElement.remove();
-        }
-        
-        // 檢查回傳的數據狀態
-        if (data && data.success === true && data.token) {
-            // 成功邏輯
-            localStorage.setItem('userToken', data.token);
-            const successMsg = data.msg || '登入成功';
-            resultDiv.textContent = successMsg + '，正在跳轉至會員列表...';
+            const scriptElement = document.getElementById('jsonpScript');
+            if (scriptElement) {
+                scriptElement.remove();
+            }
             
-            setTimeout(() => {
-                window.location.href = "list.html";
-            }, 1500);
+            // 檢查回傳的數據狀態
+            if (data && data.success === true && data.token) {
+                // 成功邏輯
+                localStorage.setItem('userToken', data.token);
+                const successMsg = data.msg || '登入成功';
+                resultDiv.textContent = successMsg + '，正在跳轉至會員列表...';
+                
+                // 延遲跳轉
+                setTimeout(() => {
+                    window.location.href = "list.html";
+                }, 1500);
 
-        } else {
-            // 失敗邏輯
-            localStorage.removeItem('userToken');
-            resultDiv.textContent = '登入失敗: ' + ((data && data.msg) || '未知錯誤');
-        }
+            } else {
+                // 失敗邏輯 (這就是我們要強制顯示的 "帳號或密碼錯誤")
+                localStorage.removeItem('userToken');
+                resultDiv.textContent = '登入失敗: ' + ((data && data.msg) || '未知錯誤');
+            }
+        }, 0); // 立即執行，但優先級高於普通 setTimeout
     }
 
     // ------------------------------------------------------------------
@@ -86,7 +91,6 @@
         submitButton.disabled = true;
         resultDiv.textContent = '處理中...'; 
 
-        // 🔹 修正關鍵：使用 try...catch 區塊來捕獲任何在發送請求前的隱藏錯誤
         try {
             const phone = document.getElementById('phone').value.trim();
             const birthday = document.getElementById('birthday').value.trim();
@@ -98,30 +102,26 @@
                 callback: "handleLoginResponse" 
             };
             
-            // 創建腳本標籤來發送請求
             const script = document.createElement('script');
             script.src = GAS_URL + '?' + encodeData(payload);
             script.id = 'jsonpScript';
             
             document.head.appendChild(script);
 
-            // 設定超時機制
+            // 設置一個極長的超時時間，以防萬一
             timeoutId = setTimeout(() => {
+                 // 只有在按鈕仍禁用時，才顯示最終超時錯誤
                  if (submitButton.disabled) {
-                    resultDiv.textContent = '處理超時 (超過 15 秒)，請檢查網路或重試。';
+                    resultDiv.textContent = '網路連線異常，請檢查網路或重試。';
                     submitButton.disabled = false;
                     timeoutId = null; 
                  }
-            }, 15000); 
+            }, 30000); // 延長至 30 秒，作為最終備案
 
         } catch (error) {
             // 捕獲並顯示執行錯誤
-            resultDiv.textContent = `🚨 前端執行錯誤 (請複製此訊息)：${error.message}`;
-            
-            // 無論如何都要解除按鈕禁用狀態
+            resultDiv.textContent = `🚨 前端執行錯誤：${error.message}`;
             submitButton.disabled = false;
-
-            // 清除超時設置，防止超時訊息覆蓋錯誤
             if (timeoutId !== null) {
                 clearTimeout(timeoutId);
                 timeoutId = null;
