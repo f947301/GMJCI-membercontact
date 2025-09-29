@@ -17,10 +17,12 @@
     const form = document.getElementById('loginForm');
     const resultDiv = document.getElementById('loginResult');
     // 💡 請確保這是您部署後最新的 /exec URL
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbyvIXS-clVEv78Um5sFNX3wOy7rSU7Xii9cNJjtdpv2iLlEH9zUo5mO8-ldTNFzTy3o_w/exec";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwSm2jT9agoCmc0lpTgk1dJ3Z34ZQm2XPHeuc7t_4ILBLoMp_mt-CzHRARaoFV6CokzlA/exec";
     
     // 儲存超時計時器的 ID，方便取消
     let timeoutId = null; 
+    const submitButton = form.querySelector('button[type="submit"]');
+
 
     // 輔助函式：將 JS 物件轉換為 URL 查詢字串
     function encodeData(data) {
@@ -31,19 +33,15 @@
 
     // 🔹 JSONP 全域回調函式 (處理 GAS 回傳的結果)
     window.handleLoginResponse = function(data) {
-        const scriptElement = document.getElementById('jsonpScript');
-        const submitButton = form.querySelector('button[type="submit"]');
-
-        // 1. 關鍵修正：清除超時計時器
+        // --- 修正關鍵：確保第一時間清除超時計時器與按鈕禁用狀態 ---
         if (timeoutId !== null) {
             clearTimeout(timeoutId);
             timeoutId = null;
         }
-
-        // 2. 啟用按鈕
         submitButton.disabled = false;
-        
-        // 3. 清除腳本元素
+        // -----------------------------------------------------------
+
+        const scriptElement = document.getElementById('jsonpScript');
         if (scriptElement) {
             scriptElement.remove();
         }
@@ -62,6 +60,7 @@
         } else {
             // 失敗邏輯
             localStorage.removeItem('userToken');
+            // 顯示來自後端的錯誤訊息
             resultDiv.textContent = '登入失敗: ' + ((data && data.msg) || '未知錯誤');
         }
     }
@@ -69,7 +68,7 @@
     form.addEventListener('submit', function(e){
         e.preventDefault();
         
-        const submitButton = form.querySelector('button[type="submit"]');
+        // 在處理開始時設定狀態
         submitButton.disabled = true;
         resultDiv.textContent = '處理中...'; 
 
@@ -89,15 +88,15 @@
         
         document.head.appendChild(script);
 
-        // 🔹 關鍵修正：將 setTimeout 的 ID 儲存起來
+        // 修正關鍵：增加超時時間，並確保在超時時也能解除按鈕禁用
         timeoutId = setTimeout(() => {
              // 只有在 timeoutId 仍然是有效 ID 時才執行超時邏輯
              if (submitButton.disabled) {
-                resultDiv.textContent = '處理超時，請檢查網路或重試。';
+                resultDiv.textContent = '處理超時 (超過 15 秒)，請檢查網路或重試。';
                 submitButton.disabled = false;
-                timeoutId = null; // 清除 ID
+                timeoutId = null; 
              }
-        }, 10000); // 10秒超時
+        }, **15000**); // **15 秒超時**
     });
 </script>
 </body>
