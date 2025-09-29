@@ -14,15 +14,16 @@
   <div id="loginResult" style="margin-top:12px;"></div>
 <!-- AKfycbyvIXS-clVEv78Um5sFNX3wOy7rSU7Xii9cNJjtdpv2iLlEH9zUo5mO8-ldTNFzTy3o_w -->
 <script>
+    // ------------------------------------------------------------------
+    // 基礎變數與設定
+    // ------------------------------------------------------------------
     const form = document.getElementById('loginForm');
     const resultDiv = document.getElementById('loginResult');
     // 💡 請確保這是您部署後最新的 /exec URL
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyvIXS-clVEv78Um5sFNX3wOy7rSU7Xii9cNJjtdpv2iLlEH9zUo5mO8-ldTNFzTy3o_w/exec";
     
-    // 儲存超時計時器的 ID，方便取消
+    // 儲存超時計時器的 ID
     let timeoutId = null; 
-    const submitButton = form.querySelector('button[type="submit"]');
-
 
     // 輔助函式：將 JS 物件轉換為 URL 查詢字串
     function encodeData(data) {
@@ -31,15 +32,21 @@
         ).join('&');
     }
 
-    // 🔹 JSONP 全域回調函式 (處理 GAS 回傳的結果)
+    // ------------------------------------------------------------------
+    // JSONP 全域回調函式 (處理 GAS 回傳的結果)
+    // ------------------------------------------------------------------
     window.handleLoginResponse = function(data) {
-        // --- 修正關鍵：確保第一時間清除超時計時器與按鈕禁用狀態 ---
+        // 確保在函式內部再次獲取按鈕元素 (增加容錯性)
+        const submitButton = form.querySelector('button[type="submit"]');
+
+        // 1. 修正關鍵：清除超時計時器與按鈕禁用狀態
         if (timeoutId !== null) {
             clearTimeout(timeoutId);
             timeoutId = null;
         }
-        submitButton.disabled = false;
-        // -----------------------------------------------------------
+        if (submitButton) {
+            submitButton.disabled = false;
+        }
 
         const scriptElement = document.getElementById('jsonpScript');
         if (scriptElement) {
@@ -65,10 +72,20 @@
         }
     }
 
+    // ------------------------------------------------------------------
+    // 表單提交事件處理
+    // ------------------------------------------------------------------
     form.addEventListener('submit', function(e){
         e.preventDefault();
         
-        // 在處理開始時設定狀態
+        // 🔹 修正關鍵：在事件觸發時查找按鈕，防止外部定義錯誤
+        const submitButton = form.querySelector('button[type="submit"]');
+        
+        if (!submitButton) {
+             resultDiv.textContent = "錯誤：找不到提交按鈕。";
+             return; 
+        }
+
         submitButton.disabled = true;
         resultDiv.textContent = '處理中...'; 
 
@@ -82,22 +99,22 @@
             callback: "handleLoginResponse" 
         };
         
+        // 創建腳本標籤來發送請求
         const script = document.createElement('script');
         script.src = GAS_URL + '?' + encodeData(payload);
         script.id = 'jsonpScript';
         
         document.head.appendChild(script);
 
-        // 修正關鍵：增加超時時間，並確保在超時時也能解除按鈕禁用
+        // 設定超時機制
         timeoutId = setTimeout(() => {
-             // 只有在 timeoutId 仍然是有效 ID 時才執行超時邏輯
+             // 只有在按鈕仍禁用時執行超時邏輯
              if (submitButton.disabled) {
                 resultDiv.textContent = '處理超時 (超過 15 秒)，請檢查網路或重試。';
                 submitButton.disabled = false;
                 timeoutId = null; 
              }
-        }, 15000); // **15 秒超時**
+        }, 15000); 
     });
-</script>
-</body>
+</script></body>
 </html>
