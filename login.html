@@ -13,10 +13,11 @@
   </form>
   <div id="loginResult" style="margin-top:12px;"></div>
 
-  <script>
+<script>
     const form = document.getElementById('loginForm');
     const resultDiv = document.getElementById('loginResult');
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbxErs-JTQsj87dlJMWaN3ArAGmMy9hFL1_tFy9suxuj54FdB7wAxrQe3IpIR4tClPX7QQ/exec"; // 替換成你的 GAS Web App URL
+    // 請務必替換成您部署後的實際 GAS Web App URL
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxErs-JTQsj87dlJMWaN3ArAGmMy9hFL1_tFy9suxuj54FdB7wAxrQe3IpIR4tClPX7QQ/exec";
 
     form.addEventListener('submit', async function(e){
       e.preventDefault();
@@ -31,15 +32,20 @@
           headers: { "Content-Type": "application/json" }
         });
         const data = await resp.json();
-        if (data.success) {
+        
+        if (data.success && data.token) { // 🔹 檢查成功並帶有 Token
+          // 將 Token 儲存起來，用於後續存取通訊錄
+          localStorage.setItem('userToken', data.token); 
+          resultDiv.textContent = '登入成功，正在跳轉...';
           window.location.href = "list.html";
         } else {
           resultDiv.textContent = data.msg || "登入失敗";
+          localStorage.removeItem('userToken'); // 清除可能殘留的 Token
         }
       } catch (err) {
         resultDiv.textContent = "連線錯誤：" + err.message;
       }
     });
-  </script>
+</script>
 </body>
 </html>
