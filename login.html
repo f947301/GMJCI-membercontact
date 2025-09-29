@@ -17,44 +17,55 @@
     const form = document.getElementById('loginForm');
     const resultDiv = document.getElementById('loginResult');
     // 請務必替換成您部署後的實際 GAS Web App URL
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbwSm2jT9agoCmc0lpTgk1dJ3Z34ZQm2XPHeuc7t_4ILBLoMp_mt-CzHRARaoFV6CokzlA/exec"; 
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwSm2jT9agoCmc0lpTgk1dJ3Z34ZQm2XPHeuc7t_4ILBLoMp_mt-CzHRARaoFV6CokzlA/exec";
 
-// 🔹 步驟 1: 定義一個全域回調函式，GAS 會呼叫它
-window.handleLoginResponse = function(data) {
-    const resultDiv = document.getElementById('loginResult');
-    // 檢查回傳的數據
-    if (data && data.success && data.token) {
-        localStorage.setItem('userToken', data.token); 
-        resultDiv.textContent = '登入成功，正在跳轉...';
-        window.location.href = "list.html";
-    } else {
-        resultDiv.textContent = (data && data.msg) || "登入失敗";
-        localStorage.removeItem('userToken');
+    // 🎯 修正處：新增 encodeData 函式定義
+    function encodeData(data) {
+        return Object.keys(data).map(key => 
+            encodeURIComponent(key) + '=' + encodeURIComponent(data[key])
+        ).join('&');
     }
-    // 清除腳本以避免混亂
-    document.getElementById('jsonpScript').remove();
-}
+    // ------------------------------------------
 
-form.addEventListener('submit', function(e){
-    e.preventDefault();
-    const phone = document.getElementById('phone').value.trim();
-    const birthday = document.getElementById('birthday').value.trim();
+    // 🔹 步驟 1: 定義一個全域回調函式，GAS 會呼叫它
+    window.handleLoginResponse = function(data) {
+        const resultDiv = document.getElementById('loginResult');
+        // 檢查回傳的數據
+        if (data && data.success && data.token) {
+            localStorage.setItem('userToken', data.token);
+            resultDiv.textContent = '登入成功，正在跳轉...';
+            // 確保 list.html 存在於同一目錄
+            window.location.href = "list.html"; 
+        } else {
+            resultDiv.textContent = (data && data.msg) || "登入失敗";
+            localStorage.removeItem('userToken');
+        }
+        // 清除腳本以避免混亂
+        const scriptElement = document.getElementById('jsonpScript');
+        if (scriptElement) {
+            scriptElement.remove();
+        }
+    }
 
-    // 🔹 步驟 2: 構建 JSONP URL
-    // 必須包含 callback=window.handleLoginResponse
-    const payload = { 
-        action: "login", 
-        phone, 
-        birthday,
-        callback: "handleLoginResponse" // 告訴 GAS 呼叫哪個函式
-    };
-    
-    // 🔹 步驟 3: 創建腳本標籤來發送請求
-    const script = document.createElement('script');
-    script.src = GAS_URL + '?' + encodeData(payload); // 使用 GET 請求
-    script.id = 'jsonpScript';
-    document.head.appendChild(script);
-});
+    form.addEventListener('submit', function(e){
+        e.preventDefault();
+        const phone = document.getElementById('phone').value.trim();
+        const birthday = document.getElementById('birthday').value.trim();
+
+        // 🔹 步驟 2: 構建 JSONP URL
+        const payload = { 
+            action: "login", 
+            phone, 
+            birthday,
+            callback: "handleLoginResponse" // 告訴 GAS 呼叫哪個函式
+        };
+        
+        // 🔹 步驟 3: 創建腳本標籤來發送請求
+        const script = document.createElement('script');
+        script.src = GAS_URL + '?' + encodeData(payload); // 這裡不再報錯
+        script.id = 'jsonpScript';
+        document.head.appendChild(script);
+    });
 </script>
 </body>
 </html>
