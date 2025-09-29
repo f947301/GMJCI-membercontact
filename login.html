@@ -1,51 +1,45 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
-
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>會員登入</title>
+  <meta charset="utf-8">
+  <title>會員登入</title>
 </head>
-
 <body>
-    <div class="login-box">
-        <h2>會員登入</h2>
-        <form id="loginForm">
-            <input type="text" id="phone" placeholder="請輸入行動電話">
-            <input type="text" id="birthday" placeholder="請輸入生日 (例如0640515)">
-            <button type="submit">登入</button>
-        </form>
-        <div id="loginResult"></div>
-    </div>
-    <script>
-    document.getElementById("loginForm").addEventListener("submit", async function(e) {
-        e.preventDefault(); // 🚫 避免表單自動刷新
+  <h2>會員登入</h2>
+  <form id="loginForm">
+    <input id="phone" placeholder="請輸入行動電話"><br>
+    <input id="birthday" placeholder="請輸入生日(例如0640515)"><br>
+    <button type="submit">登入</button>
+  </form>
+  <div id="loginResult" style="margin-top:12px;"></div>
 
-        const phone = document.getElementById("phone").value.trim();
-        const birthday = document.getElementById("birthday").value.trim();
-        const resultDiv = document.getElementById("loginResult");
+  <script>
+    const form = document.getElementById('loginForm');
+    const resultDiv = document.getElementById('loginResult');
+    const GAS_URL = "YOUR_GAS_WEBAPP_URL"; // 替換成你的 GAS Web App URL
 
-        resultDiv.innerText = "登入中...";
+    form.addEventListener('submit', async function(e){
+      e.preventDefault();
+      resultDiv.textContent = '登入中...';
+      const phone = document.getElementById('phone').value.trim();
+      const birthday = document.getElementById('birthday').value.trim();
 
-        try {
-            const res = await fetch("https://script.google.com/macros/s/AKfycbxxxx/exec", {
-                method: "POST",
-                body: JSON.stringify({ phone, birthday }),
-                headers: { "Content-Type": "application/json" }
-            });
-
-            const data = await res.json();
-            if (data.result) {
-                resultDiv.innerHTML = `<span style="color:green">${data.result}</span>`;
-            } else if (data.error) {
-                resultDiv.innerHTML = `<span style="color:red">錯誤：${data.error}</span>`;
-            } else {
-                resultDiv.innerHTML = `<span style="color:red">登入失敗，請檢查帳號與密碼</span>`;
-            }
-        } catch (err) {
-            resultDiv.innerHTML = `<span style="color:red">連線失敗：${err.message}</span>`;
+      try {
+        const resp = await fetch(GAS_URL, {
+          method: "POST",
+          body: JSON.stringify({ action:"login", phone, birthday }),
+          headers: { "Content-Type": "application/json" }
+        });
+        const data = await resp.json();
+        if (data.success) {
+          window.location.href = "list.html";
+        } else {
+          resultDiv.textContent = data.msg || "登入失敗";
         }
+      } catch (err) {
+        resultDiv.textContent = "連線錯誤：" + err.message;
+      }
     });
-    </script>
+  </script>
 </body>
-
 </html>

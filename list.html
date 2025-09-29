@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>會員列表</title>
+</head>
+<body>
+  <h2>會員列表</h2>
+  <div id="memberList"></div>
+  <div id="pagination"></div>
+
+  <script>
+    const GAS_URL = "YOUR_GAS_WEBAPP_URL"; // 替換成你的 GAS Web App URL
+    const pageSize = 10;
+    let currentPage = 1;
+    let members = [];
+
+    async function fetchMembers() {
+      try {
+        const resp = await fetch(GAS_URL, {
+          method: "POST",
+          body: JSON.stringify({ action:"getList" }),
+          headers: { "Content-Type": "application/json" }
+        });
+        members = await resp.json();
+        renderPage(currentPage);
+      } catch(err) {
+        document.getElementById("memberList").textContent = "資料載入失敗：" + err.message;
+      }
+    }
+
+    function renderPage(page) {
+      const listDiv = document.getElementById("memberList");
+      listDiv.innerHTML = "";
+
+      const start = (page - 1) * pageSize;
+      const end = start + pageSize;
+      const pageItems = members.slice(start, end);
+
+      pageItems.forEach(member => {
+        const div = document.createElement("div");
+        // 🔹 每個會員資料放入 div，可自行 RWD 調整
+        div.innerHTML = `
+          <div>
+            <div>姓名: ${member["姓名"]}</div>
+            <div>生日: ${member["生日"]}</div>
+            <div>服務單位: ${member["服務單位"]}</div>
+            <div>行動電話: ${member["行動電話-帳"]}</div>
+            <div>通訊地址: ${member["通訊地址"]}</div>
+            <div>E-mail: ${member["E-mail"]}</div>
+            <div>LINE: ${member["LINE"]}</div>
+          </div>
+          <hr>
+        `;
+        listDiv.appendChild(div);
+      });
+
+      renderPagination();
+    }
+
+    function renderPagination() {
+      const pageCount = Math.ceil(members.length / pageSize);
+      const pagDiv = document.getElementById("pagination");
+      pagDiv.innerHTML = "";
+
+      for (let i = 1; i <= pageCount; i++) {
+        const btn = document.createElement("button");
+        btn.textContent = i;
+        if (i === currentPage) btn.disabled = true;
+        btn.addEventListener("click", () => {
+          currentPage = i;
+          renderPage(currentPage);
+        });
+        pagDiv.appendChild(btn);
+      }
+    }
+
+    fetchMembers();
+  </script>
+</body>
+</html>
