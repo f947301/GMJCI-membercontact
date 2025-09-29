@@ -36,10 +36,9 @@
     // JSONP 全域回調函式 (處理 GAS 回傳的結果)
     // ------------------------------------------------------------------
     window.handleLoginResponse = function(data) {
-        // 確保在函式內部再次獲取按鈕元素 (增加容錯性)
         const submitButton = form.querySelector('button[type="submit"]');
 
-        // 1. 修正關鍵：清除超時計時器與按鈕禁用狀態
+        // 1. 清除超時計時器與按鈕禁用狀態
         if (timeoutId !== null) {
             clearTimeout(timeoutId);
             timeoutId = null;
@@ -67,7 +66,6 @@
         } else {
             // 失敗邏輯
             localStorage.removeItem('userToken');
-            // 顯示來自後端的錯誤訊息
             resultDiv.textContent = '登入失敗: ' + ((data && data.msg) || '未知錯誤');
         }
     }
@@ -78,7 +76,6 @@
     form.addEventListener('submit', function(e){
         e.preventDefault();
         
-        // 🔹 修正關鍵：在事件觸發時查找按鈕，防止外部定義錯誤
         const submitButton = form.querySelector('button[type="submit"]');
         
         if (!submitButton) {
@@ -89,32 +86,48 @@
         submitButton.disabled = true;
         resultDiv.textContent = '處理中...'; 
 
-        const phone = document.getElementById('phone').value.trim();
-        const birthday = document.getElementById('birthday').value.trim();
+        // 🔹 修正關鍵：使用 try...catch 區塊來捕獲任何在發送請求前的隱藏錯誤
+        try {
+            const phone = document.getElementById('phone').value.trim();
+            const birthday = document.getElementById('birthday').value.trim();
 
-        const payload = { 
-            action: "login", 
-            phone, 
-            birthday,
-            callback: "handleLoginResponse" 
-        };
-        
-        // 創建腳本標籤來發送請求
-        const script = document.createElement('script');
-        script.src = GAS_URL + '?' + encodeData(payload);
-        script.id = 'jsonpScript';
-        
-        document.head.appendChild(script);
+            const payload = { 
+                action: "login", 
+                phone, 
+                birthday,
+                callback: "handleLoginResponse" 
+            };
+            
+            // 創建腳本標籤來發送請求
+            const script = document.createElement('script');
+            script.src = GAS_URL + '?' + encodeData(payload);
+            script.id = 'jsonpScript';
+            
+            document.head.appendChild(script);
 
-        // 設定超時機制
-        timeoutId = setTimeout(() => {
-             // 只有在按鈕仍禁用時執行超時邏輯
-             if (submitButton.disabled) {
-                resultDiv.textContent = '處理超時 (超過 15 秒)，請檢查網路或重試。';
-                submitButton.disabled = false;
-                timeoutId = null; 
-             }
-        }, 15000); 
+            // 設定超時機制
+            timeoutId = setTimeout(() => {
+                 if (submitButton.disabled) {
+                    resultDiv.textContent = '處理超時 (超過 15 秒)，請檢查網路或重試。';
+                    submitButton.disabled = false;
+                    timeoutId = null; 
+                 }
+            }, 15000); 
+
+        } catch (error) {
+            // 捕獲並顯示執行錯誤
+            resultDiv.textContent = `🚨 前端執行錯誤 (請複製此訊息)：${error.message}`;
+            
+            // 無論如何都要解除按鈕禁用狀態
+            submitButton.disabled = false;
+
+            // 清除超時設置，防止超時訊息覆蓋錯誤
+            if (timeoutId !== null) {
+                clearTimeout(timeoutId);
+                timeoutId = null;
+            }
+        }
     });
-</script></body>
+</script>
+</body>
 </html>
