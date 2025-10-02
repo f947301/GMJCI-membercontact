@@ -95,27 +95,47 @@ function generateToken(userName) {
     return Utilities.base64Encode(rawToken);
 }
 
+// 替換您 Code.gs 中現有的 validateToken 函式
 function validateToken(token) {
-    // 簡單的 Base64 解碼檢查
+    if (!token) return { success: false, msg: "Token 缺失，請重新登入" };
+
+    // 🎯 關鍵修正：確保 Token 格式符合 URL 安全標準，以便 Base64 正確解碼
+    // 1. 替換 Base64 URL Safe 變體: - 變為 +, _ 變為 /
+    // 2. 移除所有空格 (有時 URL 傳遞會產生空格)
+    // 3. 處理填充字元 = (Base64 解碼通常需要正確的填充)
+    const safeToken = token.replace(/-/g, '+').replace(/_/g, '/').replace(/\s/g, '');
+    
+    // 處理 Base64 填充
+    while (safeToken.length % 4 !== 0) {
+        safeToken += '=';
+    }
+
     try {
-        const decoded = Utilities.base64Decode(token, Utilities.Charset.UTF_8);
+        // 嘗試解碼
+        const decodedBytes = Utilities.base64Decode(safeToken, Utilities.Charset.UTF_8);
+        const decoded = Utilities.newBlob(decodedBytes).getDataAsString(); // 更穩定的字串轉換
+        
         const parts = decoded.split(':');
         
-        if (parts.length !== 3) {
+        if (parts.length !== 3) { 
+             // 如果解碼成功，但結構不符，也視為錯誤
              throw new Error("格式錯誤");
         }
         
         const timestamp = parseInt(parts[1], 10);
-        // 檢查 Token 是否過期 (例如：30 天過期)
+        // 檢查 Token 是否過期 (30 天)
         if (Date.now() - timestamp > 30 * 24 * 60 * 60 * 1000) {
             return { success: false, msg: "Token 已過期，請重新登入" };
         }
         
         return { success: true, user: parts[0] };
     } catch(e) {
+        // 捕獲所有解碼失敗、格式錯誤或時間戳解析錯誤
+        // Logger.log("Token 驗證失敗: " + e.message + " - 原始Token: " + token); // 您可以在測試時啟用這行
         return { success: false, msg: "無效的 Token" };
     }
 }
+
 
 function checkMemberLogin(phone, birthday) {
     // ⚠️ 請在這裡實現您的 Google Sheets 登入檢查邏輯
