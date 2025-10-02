@@ -102,21 +102,31 @@
         }
     }
 
-    function renderDetail(member) {
+   function renderDetail(member) {
         const detailDiv = document.getElementById("personalDetail");
         
-        // 1. 檢查 "歿" 欄位，如有資料則在姓名後方加上*字
         const isDeceased = member["歿"] && String(member["歿"]).trim() !== '';
         const nameDisplay = member["姓名"] + (isDeceased ? '*' : '');
         
-        // 更新標題
         document.getElementById("pageTitle").textContent = `會員詳情：${nameDisplay}`;
 
+        // 🎯 1. 處理照片顯示
+        const photoURL = member["照片URL"];
+        let photoHtml = '';
+        if (photoURL) {
+            // style="max-width: 100%; height: auto;" 確保響應式設計
+            photoHtml = `
+                <div>
+                    <img src="${photoURL}" alt="${member["姓名"]}的照片" >
+                    <hr>
+                </div>
+            `;
+        }
+
         // 2. 渲染詳情列表
-        // 🎯 注意：欄位名稱需與 Code.gs 中 getMemberDetail 返回的欄位名稱一致
         const fields = {
             "姓名": nameDisplay,
-            "生日": member["生日-密"] || 'N/A', // 假設這是生日欄位
+            "生日": member["生日-密"] || 'N/A', 
             "服務單位": member["服務單位"] || 'N/A',
             "行動電話": member["行動電話-帳"] || 'N/A',
             "住家電話": member["住家電話"] || 'N/A',
@@ -126,11 +136,10 @@
             "經歷": member["經歷"] || 'N/A',
         };
 
-        let htmlContent = '';
+        let detailsHtml = '';
         for (const label in fields) {
-            // 讓姓名在死亡時特別突出
             const valueClass = (label === '姓名' && isDeceased) ? 'deceased' : '';
-            htmlContent += `
+            detailsHtml += `
                 <div class="detail-item">
                     <strong>${label}:</strong> 
                     <span class="${valueClass}">${fields[label]}</span>
@@ -138,7 +147,8 @@
             `;
         }
         
-        detailDiv.innerHTML = htmlContent;
+        // 將照片放在最上方，後面跟著詳細資訊
+        detailDiv.innerHTML = photoHtml + detailsHtml;
     }
 
     // 頁面載入時執行
