@@ -3,39 +3,31 @@
 <head>
   <meta charset="utf-8">
   <title>會員詳情</title>
-  <style>
-    .detail-container {
-        max-width: 600px;
-        margin: 20px auto;
-        padding: 20px;
-        border: 1px solid #ccc;
-        border-radius: 8px;
-    }
-    .detail-item {
-        margin-bottom: 10px;
-        line-height: 1.5;
-    }
-    .detail-item strong {
-        display: inline-block;
-        width: 100px;
-        color: #333;
-    }
-    .deceased {
-        color: red;
-        font-weight: bold;
-    }
-  </style>
+  <link rel="stylesheet" href="styles.css"> 
 </head>
 <body>
   <a href="list.html">返回會員列表</a>
-  <h2 id="pageTitle">會員資料載入中...</h2>
-  <div id="personalDetail" class="detail-container">
+  <h2 id="pageTitle" class="member-name-title"></h2> <div id="personalDetail" class="detail-container">
     </div>
-  <div id="message" style="color: red; margin-top: 20px;"></div>
-  <script src="config.js"></script> 
-  <script>
-    
-    
+  
+  <div id="message" class="error-message"></div>
+
+  <template id="photoTemplate">
+    <div class="photo-container">
+        <img src="" alt="會員照片" class="member-photo">
+        <hr class="photo-separator">
+    </div>
+  </template>
+
+  <template id="detailTemplate">
+    <div class="detail-item">
+        <div class="detail-label"></div> <div class="detail-value"></div> </div>
+  </template>
+
+ 
+ <script src="config.js"></script> 
+
+ <script>
     // 輔助函式：從 URL 獲取參數
     function getUrlParameter(name) {
         name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
@@ -51,11 +43,20 @@
         ).join('&');
     }
 
+    /**
+     * 將經歷欄位的內容（預期以空格分隔）轉換為帶 <br> 的 HTML 內容。
+     */
+    function formatExperience(experienceStr) {
+        if (!experienceStr) return ''; // 如果沒有資料，返回空字串
+        let str = String(experienceStr).trim();
+        return str.replace(/\s+/g, '<br>'); 
+    }
+
     async function fetchPersonalDetail() {
         const phone = getUrlParameter('phone');
         const token = localStorage.getItem('userToken');
-        const detailDiv = document.getElementById("personalDetail");
         const msgDiv = document.getElementById("message");
+        msgDiv.textContent = "";
 
         if (!phone) {
             msgDiv.textContent = "錯誤：URL 中缺少會員電話號碼。";
@@ -66,21 +67,17 @@
             window.location.href = "login.html";
             return;
         }
-
-        const payload = { 
-            action: "getDetail", // 🎯 使用新的 GAS 動作
-            phone: phone,
-            token: token
-        };
         
+        // 確保頁面標題初始時顯示正確狀態
+        document.getElementById("pageTitle").textContent = "會員資料載入中...";
+
+        const payload = { action: "getDetail", phone: phone, token: token };
         const fullUrl = GAS_URL + '?' + encodeData(payload);
 
         try {
             const resp = await fetch(fullUrl, { method: "GET" });
             
-            if (!resp.ok) {
-                throw new Error(`HTTP 錯誤狀態: ${resp.status}`);
-            }
+            if (!resp.ok) { throw new Error(`HTTP 錯誤狀態: ${resp.status}`); }
             
             const result = await resp.json();
             
@@ -88,7 +85,7 @@
                 renderDetail(result.detail);
             } else if (result.msg) {
                  msgDiv.textContent = "錯誤: " + result.msg;
-                 // 如果未授權，跳回登入頁
+                 document.getElementById("pageTitle").textContent = "資料載入失敗";
                  if (result.msg.includes("未授權")) { 
                      setTimeout(() => { window.location.href = "login.html"; }, 1500);
                  }
@@ -98,57 +95,76 @@
 
         } catch(err) {
             msgDiv.textContent = "資料載入失敗: " + err.message;
+            document.getElementById("pageTitle").textContent = "資料載入失敗";
             console.error(err);
         }
     }
 
-   function renderDetail(member) {
+    // 🎯 修正後的渲染函式
+    function renderDetail(member) {
         const detailDiv = document.getElementById("personalDetail");
-        
-        const isDeceased = member["歿"] && String(member["歿"]).trim() !== '';
-        const nameDisplay = member["姓名"] + (isDeceased ? '*' : '');
-        
-        document.getElementById("pageTitle").textContent = `會員詳情：${nameDisplay}`;
+        detailDiv.innerHTML = ''; // 清空內容
 
-        // 🎯 1. 處理照片顯示
+        const isDeceased = member["歿"] && String(member["歿"]).trim() !== '';
+        const rawName = member["姓名"] || '';
+        const nameDisplay = rawName + (isDeceased ? '*' : '');
+        
+        // 設置主標題 (不使用模板，直接設置)
+        document.getElementById("pageTitle").textContent = rawName ? `會員詳情：${nameDisplay}` : '會員詳情';
+
+        // 🎯 2. 處理照片區塊 (無資料不顯示)
         const photoURL = member["照片URL"];
-        let photoHtml = '';
-        if (photoURL) {
-            // style="max-width: 100%; height: auto;" 確保響應式設計
-            photoHtml = `
-                <div>
-                    <img src="${photoURL}" alt="${member["姓名"]}的照片" >
-                    <hr>
-                </div>
-            `;
+        if (photoURL && String(photoURL).trim() !== '') {
+            const photoTemplate = document.getElementById('photoTemplate').content.cloneNode(true);
+            const imgElement = photoTemplate.querySelector('img');
+            
+            imgElement.src = photoURL;
+            imgElement.alt = rawName ? rawName + '的照片' : '會員照片';
+            
+            detailDiv.appendChild(photoTemplate);
         }
 
-        // 2. 渲染詳情列表
-        const fields = {
-            "姓名": nameDisplay,
-            "生日": member["生日-密"] || 'N/A', 
-            "服務單位": member["服務單位"] || 'N/A',
-            "行動電話": member["行動電話-帳"] || 'N/A',
-            "住家電話": member["住家電話"] || 'N/A',
-            "通訊地址": member["通訊地址"] || 'N/A',
-            "E-mail": member["E-mail"] || 'N/A',
-            "LINE": member["LINE"] || 'N/A',
-            "經歷": member["經歷"] || 'N/A',
+        // 3. 定義要顯示的欄位及其對應的標籤
+        // 🎯 關鍵：使用修正後的欄位名稱
+        const fieldsMapping = {
+            "姓名": rawName,
+            "生日": member["生日"] || '', // 🎯 欄位修正為 "生日"
+            "服務單位": member["服務單位"] || '',
+            "行動電話": member["行動電話"] || '', // 🎯 欄位修正為 "行動電話"
+            "住家電話": member["住家電話"] || '',
+            "通訊地址": member["通訊地址"] || '',
+            "E-mail": member["E-mail"] || '',
+            "LINE": member["LINE"] || '',
+            "經歷": formatExperience(member["經歷"]), // 經歷斷行處理
         };
 
-        let detailsHtml = '';
-        for (const label in fields) {
-            const valueClass = (label === '姓名' && isDeceased) ? 'deceased' : '';
-            detailsHtml += `
-                <div class="detail-item">
-                    <strong>${label}:</strong> 
-                    <span class="${valueClass}">${fields[label]}</span>
-                </div>
-            `;
+        const itemTemplate = document.getElementById('detailTemplate');
+
+        for (const label in fieldsMapping) {
+            const value = fieldsMapping[label];
+            
+            // 🎯 關鍵邏輯：如果值是空字串，則不生成此項目的 HTML
+            if (!value || String(value).trim() === '') {
+                continue; 
+            }
+            
+            // 從模板複製節點
+            const clone = itemTemplate.content.cloneNode(true); 
+            
+            // 設置標籤
+            clone.querySelector('.detail-label').textContent = label + ':';
+            
+            // 設置數值 (使用 innerHTML 來渲染 <br> 標籤)
+            const valueElement = clone.querySelector('.detail-value');
+            valueElement.innerHTML = value; 
+            
+            // 應用死亡樣式，交給 CSS 處理
+            if (label === '姓名' && isDeceased) {
+                valueElement.classList.add('deceased');
+            }
+
+            detailDiv.appendChild(clone);
         }
-        
-        // 將照片放在最上方，後面跟著詳細資訊
-        detailDiv.innerHTML = photoHtml + detailsHtml;
     }
 
     // 頁面載入時執行

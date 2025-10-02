@@ -243,10 +243,11 @@ function getMemberDetail(phone) {
     const header = data[0];
     const phoneIdx = header.indexOf("行動電話-帳");
     
-    if (phoneIdx === -1) return { success: false, msg: "找不到電話欄位" };
+    if (phoneIdx === -1) return { success: false, msg: "找不到行動電話欄位" };
 
     let memberData = null;
 
+    // 尋找匹配電話號碼的會員
     for (let i = 1; i < data.length; i++) {
         const phoneVal = (data[i][phoneIdx] || "").toString().trim();
         if (phoneVal === phone) {
@@ -257,9 +258,10 @@ function getMemberDetail(phone) {
 
     if (!memberData) return { success: false, msg: "找不到該會員資料" };
 
+    // 🎯 簡化：直接抓取所有前端需要的原始欄位
     const fieldsToReturn = [
-        "姓名", "生日-密", "服務單位", "行動電話-帳", "住家電話", 
-        "通訊地址", "E-mail", "LINE", "經歷", "歿", "照片連結" // 🎯 確保 "照片連結" 被包含
+        "姓名", "生日", "服務單位", "行動電話", "住家電話", 
+        "通訊地址", "E-mail", "LINE", "經歷", "歿", "照片連結"
     ];
     
     const detail = {};
@@ -268,24 +270,21 @@ function getMemberDetail(phone) {
         detail[field] = idx > -1 ? (memberData[idx] || "") : "";
     });
 
-    // 🚀 關鍵轉換邏輯：將 Google Drive 連結轉換為直接圖片 URL
+    // 關鍵轉換邏輯：將 Google Drive 連結轉換為直接圖片 URL
     const photoLink = detail["照片連結"];
     if (photoLink) {
-        // 嘗試從常見的分享連結中提取檔案 ID
         const match = photoLink.match(/\/d\/([a-zA-Z0-9_-]+)/);
         if (match && match[1]) {
             const fileId = match[1];
-            // Google Drive 圖片直接顯示 URL 格式
             detail["照片URL"] = `https://drive.google.com/uc?export=view&id=${fileId}`;
         } else {
-            // 如果不是標準分享連結，則直接使用原始連結，並移除照片連結欄位避免混淆
             detail["照片URL"] = photoLink; 
         }
     } else {
-        detail["照片URL"] = null;
+        detail["照片URL"] = "";
     }
     
-    // 移除 "照片連結" 欄位，前端只使用 "照片URL"
+    // 移除原始的 '照片連結' 欄位，避免資料冗餘
     delete detail["照片連結"];
 
     return { success: true, detail: detail };
