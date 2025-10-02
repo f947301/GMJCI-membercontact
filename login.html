@@ -20,12 +20,9 @@
     const form = document.getElementById('loginForm');
     const resultDiv = document.getElementById('loginResult');
     const LOADING_TEXT = '處理中...';
-    // 💡 請替換成您的實際 /exec URL
+    // 💡 請確保這是您部署後最新的 /exec URL
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyvIXS-clVEv78Um5sFNX3wOy7rSU7Xii9cNJjtdpv2iLlEH9zUo5mO8-ldTNFzTy3o_w/exec";
     
-    // 輔助變數：用於追蹤 handleLoginResponse 是否已被執行
-    let isCallbackExecuted = false; 
-
     // 輔助函式：將 JS 物件轉換為 URL 查詢字串
     function encodeData(data) {
         return Object.keys(data).map(key => 
@@ -34,51 +31,48 @@
     }
 
     // ------------------------------------------------------------------
-    // JSONP 全域回調函式 (處理 GAS 回傳的結果)
+    // JSONP 全域回調函式 (處理 GAS 回傳的結果) - 這裡就是讀取訊息的地方
     // ------------------------------------------------------------------
-    // ------------------------------------------------------------------
-// JSONP 全域回調函式 (處理 GAS 回傳的結果) - 這裡就是讀取訊息的地方
-// ------------------------------------------------------------------
-window.handleLoginResponse = function(data) {
-    // 獲取 DOM 元素 (確保能夠找到)
-    const form = document.getElementById('loginForm');
-    const resultDiv = document.getElementById('loginResult');
-    const submitButton = form ? form.querySelector('button[type="submit"]') : null;
-    const scriptElement = document.getElementById('jsonpScript');
+    window.handleLoginResponse = function(data) {
+        // 核心目標：只要被呼叫，就立即更新狀態
+        
+        // 確保元素存在 (增加容錯性)
+        const form = document.getElementById('loginForm');
+        const resultDiv = document.getElementById('loginResult');
+        const submitButton = form ? form.querySelector('button[type="submit"]') : null;
+        const scriptElement = document.getElementById('jsonpScript');
 
-    // 1. **核心步驟**：解除按鈕禁用和移除腳本
-    if (submitButton) {
-        submitButton.disabled = false;
-    }
-    if (scriptElement) {
-        scriptElement.remove();
-    }
-    
-    // 2. **核心步驟**：讀取回傳的數據 (data)
-    if (data && data.success === true && data.token) {
-        // 成功邏輯
-        localStorage.setItem('userToken', data.token);
-        const successMsg = data.msg || '登入成功';
+        // 1. **解除按鈕禁用和移除腳本 (同步執行)**
+        if (submitButton) {
+            submitButton.disabled = false;
+        }
+        if (scriptElement) {
+            scriptElement.remove();
+        }
         
-        // 畫面顯示：成功訊息
-        resultDiv.textContent = successMsg + '，正在跳轉至會員列表...';
-        
-        // 延遲跳轉到 LIST.HTML
-        setTimeout(() => {
-            window.location.href = "list.html";
-        }, 1500);
+        // 2. **讀取回傳的數據 (data) 並做判讀**
+        if (data && data.success === true && data.token) {
+            // 成功邏輯
+            localStorage.setItem('userToken', data.token);
+            const successMsg = data.msg || '登入成功';
+            
+            // 畫面顯示：成功訊息
+            resultDiv.textContent = successMsg + '，正在跳轉至會員列表...';
+            
+            // 延遲跳轉到 LIST.HTML
+            setTimeout(() => {
+                window.location.href = "list.html";
+            }, 1500);
 
-    } else {
-        // 失敗邏輯 (您目前的狀況會走這裡)
-        localStorage.removeItem('userToken');
-        
-        // 畫面顯示：失敗訊息 (直接讀取 msg 內容)
-        resultDiv.textContent = '登入失敗: ' + ((data && data.msg) || '未知錯誤');
+        } else {
+            // 失敗邏輯 (直接讀取 msg 內容)
+            localStorage.removeItem('userToken');
+            
+            // 畫面顯示：失敗訊息
+            resultDiv.textContent = '登入失敗: ' + ((data && data.msg) || '未知錯誤');
+        }
     }
-    
-    // 📌 注意：我們不再使用任何 setTimeout(..., 0) 或 isCallbackExecuted 標記。
-}
-// 請確保您的 form.addEventListener 邏輯仍然存在，且沒有包含任何 setTimeout 進行競爭。
+
     // ------------------------------------------------------------------
     // 表單提交事件處理
     // ------------------------------------------------------------------
@@ -93,8 +87,7 @@ window.handleLoginResponse = function(data) {
 
         submitButton.disabled = true;
         resultDiv.textContent = LOADING_TEXT;
-        isCallbackExecuted = false; // 重設追蹤標記
-
+        
         try {
             const phone = document.getElementById('phone').value.trim();
             const birthday = document.getElementById('birthday').value.trim();
@@ -103,23 +96,16 @@ window.handleLoginResponse = function(data) {
                 action: "login", 
                 phone, 
                 birthday,
-                callback: "handleLoginResponse" 
+                callback: "handleLoginResponse" // 🔴 必須包含 callback
             };
             
+            // 創建腳本標籤來發送請求
             const script = document.createElement('script');
             script.src = GAS_URL + '?' + encodeData(payload);
             script.id = 'jsonpScript';
             document.head.appendChild(script);
 
-            // 設置一個長延遲，作為執行保險
-            setTimeout(() => {
-                // 如果長延遲觸發時，回調函式仍未執行 (isCallbackExecuted 為 false)
-                if (!isCallbackExecuted) {
-                    // 顯示最終錯誤，指向環境問題
-                    resultDiv.textContent = '網路連線異常，伺服器回覆執行被阻止。請禁用瀏覽器擴充功能或使用無痕模式。';
-                    submitButton.disabled = false;
-                }
-            }, 30000); // 30 秒後檢查
+            // ⚠️ 這裡不再包含任何 setTimeout 或輪詢，將所有控制權交給 handleLoginResponse。
 
         } catch (error) {
             // 捕獲並顯示執行錯誤
