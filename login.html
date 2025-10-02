@@ -23,11 +23,8 @@
     // 💡 請替換成您的實際 /exec URL
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyvIXS-clVEv78Um5sFNX3wOy7rSU7Xii9cNJjtdpv2iLlEH9zUo5mO8-ldTNFzTy3o_w/exec";
     
-    // 輪詢控制變數
-    let pollingTimerId = null; 
-    let checkCount = 0;
-    const MAX_CHECKS = 5; // 最大檢查次數
-    const CHECK_INTERVAL = 3000; // 3 秒間隔
+    // 輔助變數：用於追蹤 handleLoginResponse 是否已被執行
+    let isCallbackExecuted = false; 
 
     // 輔助函式：將 JS 物件轉換為 URL 查詢字串
     function encodeData(data) {
@@ -37,19 +34,15 @@
     }
 
     // ------------------------------------------------------------------
-    // JSONP 全域回調函式 (處理 GAS 回傳的結果) - 成功執行後會清除輪詢
+    // JSONP 全域回調函式 (處理 GAS 回傳的結果)
     // ------------------------------------------------------------------
     window.handleLoginResponse = function(data) {
+        // 核心修正：標記回調已被執行
+        isCallbackExecuted = true; 
+        
         const submitButton = form.querySelector('button[type="submit"]');
 
-        // 核心修正：JSONP 腳本一旦執行，立即清除所有定時器
-        if (pollingTimerId !== null) {
-            clearInterval(pollingTimerId); // 清除 setInterval 或 setTimeout
-            clearTimeout(pollingTimerId); // 以防萬一是 setTimeout
-            pollingTimerId = null;
-        }
-
-        // 立即處理所有狀態更新 (使用 setTimeout(..., 0) 確保優先級)
+        // 確保所有狀態更新優先執行
         setTimeout(() => { 
             if (submitButton) {
                 submitButton.disabled = false;
@@ -60,19 +53,20 @@
                 scriptElement.remove();
             }
             
-            // 檢查回傳的數據狀態
+            // 檢查回傳的數據狀態 (這裡就是讀取內容並做判讀的地方)
             if (data && data.success === true && data.token) {
                 // 成功邏輯
                 localStorage.setItem('userToken', data.token);
                 const successMsg = data.msg || '登入成功';
                 resultDiv.textContent = successMsg + '，正在跳轉至會員列表...';
                 
+                // 跳轉到 LIST.HTML
                 setTimeout(() => {
                     window.location.href = "list.html";
                 }, 1500);
 
             } else {
-                // 失敗邏輯 (顯示來自後端的錯誤訊息)
+                // 失敗邏輯
                 localStorage.removeItem('userToken');
                 resultDiv.textContent = '登入失敗: ' + ((data && data.msg) || '未知錯誤');
             }
@@ -80,43 +74,7 @@
     }
 
     // ------------------------------------------------------------------
-    // 定時輪詢函式：檢查 Script 狀態
-    // ------------------------------------------------------------------
-    function checkScriptStatus() {
-        checkCount++;
-        const submitButton = form.querySelector('button[type="submit"]');
-        const scriptElement = document.getElementById('jsonpScript');
-
-        if (scriptElement && scriptElement.src.startsWith(GAS_URL)) {
-            // 情況 1: 腳本已成功加入 DOM (載入完成)
-            
-            // 🔴 關鍵修正：停止輪詢，不再設定任何長超時
-            if (pollingTimerId !== null) {
-                clearInterval(pollingTimerId); 
-                pollingTimerId = null;
-                // 顯示：載入完成，無限期等待執行結果... (我們信任它會執行)
-                resultDiv.textContent = '載入完成，等待伺服器回覆執行結果...';
-            }
-            // 腳本已在 DOM 中，程式碼會被執行。如果執行被極度延遲，畫面會停在「載入完成...」
-
-        } else if (checkCount >= MAX_CHECKS) {
-            // 情況 2: 超過最大檢查次數 (15 秒)
-            clearInterval(pollingTimerId);
-            pollingTimerId = null;
-            
-            // 顯示最終錯誤 (這表示腳本根本沒被加入 DOM)
-            resultDiv.textContent = '網路連線異常，腳本無法載入。請檢查網路或重試。';
-            if (submitButton) {
-                submitButton.disabled = false;
-            }
-        } else {
-            // 情況 3: 腳本尚未加入 DOM，繼續等待
-            resultDiv.textContent = `${LOADING_TEXT} (第 ${checkCount} 次檢查...)`;
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // 表單提交事件處理 (保持不變)
+    // 表單提交事件處理
     // ------------------------------------------------------------------
     form.addEventListener('submit', function(e){
         e.preventDefault();
@@ -129,7 +87,7 @@
 
         submitButton.disabled = true;
         resultDiv.textContent = LOADING_TEXT;
-        checkCount = 0; // 重設計數器
+        isCallbackExecuted = false; // 重設追蹤標記
 
         try {
             const phone = document.getElementById('phone').value.trim();
@@ -147,17 +105,20 @@
             script.id = 'jsonpScript';
             document.head.appendChild(script);
 
-            // 啟動定時輪詢，開始檢查腳本狀態
-            pollingTimerId = setInterval(checkScriptStatus, CHECK_INTERVAL);
+            // 設置一個長延遲，作為執行保險
+            setTimeout(() => {
+                // 如果長延遲觸發時，回調函式仍未執行 (isCallbackExecuted 為 false)
+                if (!isCallbackExecuted) {
+                    // 顯示嚴重錯誤，因為腳本已載入但未執行
+                    resultDiv.textContent = '嚴重錯誤：伺服器回覆已載入，但執行被阻止。請禁用瀏覽器擴充功能。';
+                    submitButton.disabled = false;
+                }
+            }, 30000); // 30 秒後檢查
 
         } catch (error) {
             // 捕獲並顯示執行錯誤
             resultDiv.textContent = `🚨 前端執行錯誤：${error.message}`;
             submitButton.disabled = false;
-            if (pollingTimerId !== null) {
-                clearInterval(pollingTimerId);
-                pollingTimerId = null;
-            }
         }
     });
 </script>
