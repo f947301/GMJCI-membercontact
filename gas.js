@@ -87,12 +87,10 @@ function doPost(e) {
 // 輔助函式：業務邏輯
 // ====================================================================
 
-function generateToken(userName) {
-    // 簡單的 Base64 編碼，不應用於生產環境
-    const timestamp = Date.now();
-    const uniqueId = Math.random();
-    const rawToken = `${userName}:${timestamp}:${uniqueId}`;
-    return Utilities.base64Encode(rawToken);
+function generateToken(memberName) {
+  const timestamp = new Date().getTime();
+  const rawString = `${memberName}:${timestamp}:${Math.random()}`;
+  return Utilities.base64Encode(rawString);
 }
 
 // 替換您 Code.gs 中現有的 validateToken 函式
