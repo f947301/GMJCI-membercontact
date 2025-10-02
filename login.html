@@ -42,9 +42,10 @@
     window.handleLoginResponse = function(data) {
         const submitButton = form.querySelector('button[type="submit"]');
 
-        // 核心修正：JSONP 腳本一旦執行，立即清除輪詢計時器
+        // 核心修正：JSONP 腳本一旦執行，立即清除所有定時器
         if (pollingTimerId !== null) {
-            clearInterval(pollingTimerId);
+            clearInterval(pollingTimerId); // 清除 setInterval 或 setTimeout
+            clearTimeout(pollingTimerId); // 以防萬一是 setTimeout
             pollingTimerId = null;
         }
 
@@ -87,31 +88,24 @@
         const scriptElement = document.getElementById('jsonpScript');
 
         if (scriptElement && scriptElement.src.startsWith(GAS_URL)) {
-            // 情況 1: 腳本已成功加入 DOM
-            // 此時我們停止輪詢，等待瀏覽器執行腳本並呼叫 handleLoginResponse。
+            // 情況 1: 腳本已成功加入 DOM (載入完成)
+            
+            // 🔴 關鍵修正：停止輪詢，不再設定任何長超時
             if (pollingTimerId !== null) {
-                clearInterval(pollingTimerId);
+                clearInterval(pollingTimerId); 
                 pollingTimerId = null;
-                // 提示：腳本已載入，等待執行結果...
-                resultDiv.textContent = '載入完成，等待伺服器回覆...';
-                
-                // 設置一個單一的長超時（30秒），防止回調永遠不執行。
-                // 如果 30 秒後仍未呼叫 handleLoginResponse，才視為真正的執行失敗。
-                pollingTimerId = setTimeout(() => {
-                    if (submitButton.disabled) {
-                        resultDiv.textContent = '網路連線異常，伺服器無回應。';
-                        submitButton.disabled = false;
-                    }
-                    pollingTimerId = null;
-                }, 30000);
+                // 顯示：載入完成，無限期等待執行結果... (我們信任它會執行)
+                resultDiv.textContent = '載入完成，等待伺服器回覆執行結果...';
             }
+            // 腳本已在 DOM 中，程式碼會被執行。如果執行被極度延遲，畫面會停在「載入完成...」
+
         } else if (checkCount >= MAX_CHECKS) {
-            // 情況 2: 超過最大檢查次數 (5 次 x 3 秒 = 15 秒)
+            // 情況 2: 超過最大檢查次數 (15 秒)
             clearInterval(pollingTimerId);
             pollingTimerId = null;
             
-            // 顯示最終錯誤
-            resultDiv.textContent = '網路連線異常，請檢查網路或重試。';
+            // 顯示最終錯誤 (這表示腳本根本沒被加入 DOM)
+            resultDiv.textContent = '網路連線異常，腳本無法載入。請檢查網路或重試。';
             if (submitButton) {
                 submitButton.disabled = false;
             }
@@ -122,7 +116,7 @@
     }
 
     // ------------------------------------------------------------------
-    // 表單提交事件處理
+    // 表單提交事件處理 (保持不變)
     // ------------------------------------------------------------------
     form.addEventListener('submit', function(e){
         e.preventDefault();
@@ -138,7 +132,6 @@
         checkCount = 0; // 重設計數器
 
         try {
-            // ... (構建 Payload 保持不變) ...
             const phone = document.getElementById('phone').value.trim();
             const birthday = document.getElementById('birthday').value.trim();
 
@@ -149,7 +142,6 @@
                 callback: "handleLoginResponse" 
             };
             
-            // 創建並附加腳本標籤 (發送請求)
             const script = document.createElement('script');
             script.src = GAS_URL + '?' + encodeData(payload);
             script.id = 'jsonpScript';
