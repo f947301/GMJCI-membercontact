@@ -23,6 +23,9 @@
     // 💡 請替換成您的實際 /exec URL
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyvIXS-clVEv78Um5sFNX3wOy7rSU7Xii9cNJjtdpv2iLlEH9zUo5mO8-ldTNFzTy3o_w/exec";
     
+    // 輔助變數：用於追蹤 handleLoginResponse 是否已被執行
+    let isCallbackExecuted = false; 
+
     // 輔助函式：將 JS 物件轉換為 URL 查詢字串
     function encodeData(data) {
         return Object.keys(data).map(key => 
@@ -31,9 +34,47 @@
     }
 
     // ------------------------------------------------------------------
-    // 表單提交事件處理 (使用 Fetch API)
+    // JSONP 全域回調函式 (處理 GAS 回傳的結果)
     // ------------------------------------------------------------------
-    form.addEventListener('submit', async function(e){
+    window.handleLoginResponse = function(data) {
+        // 核心修正：標記回調已被執行，並確保狀態同步更新
+        isCallbackExecuted = true; 
+        
+        const submitButton = form.querySelector('button[type="submit"]');
+
+        // 移除 setTimeout(..., 0)，強制同步更新狀態
+        if (submitButton) {
+            submitButton.disabled = false;
+        }
+
+        const scriptElement = document.getElementById('jsonpScript');
+        if (scriptElement) {
+            scriptElement.remove();
+        }
+        
+        // 檢查回傳的數據狀態 (這裡就是讀取內容並做判讀的地方)
+        if (data && data.success === true && data.token) {
+            // 成功邏輯
+            localStorage.setItem('userToken', data.token);
+            const successMsg = data.msg || '登入成功';
+            resultDiv.textContent = successMsg + '，正在跳轉至會員列表...';
+            
+            // 延遲跳轉到 LIST.HTML
+            setTimeout(() => {
+                window.location.href = "list.html";
+            }, 1500);
+
+        } else {
+            // 失敗邏輯
+            localStorage.removeItem('userToken');
+            resultDiv.textContent = '登入失敗: ' + ((data && data.msg) || '未知錯誤');
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // 表單提交事件處理
+    // ------------------------------------------------------------------
+    form.addEventListener('submit', function(e){
         e.preventDefault();
         
         const submitButton = form.querySelector('button[type="submit"]');
@@ -44,57 +85,37 @@
 
         submitButton.disabled = true;
         resultDiv.textContent = LOADING_TEXT;
-        
-        const phone = document.getElementById('phone').value.trim();
-        const birthday = document.getElementById('birthday').value.trim();
-
-        // 構建請求參數 (不需要 callback 參數)
-        const payload = { 
-            action: "login", 
-            phone, 
-            birthday
-        };
-        
-        const fullUrl = GAS_URL + '?' + encodeData(payload);
+        isCallbackExecuted = false; // 重設追蹤標記
 
         try {
-            // 🚀 使用 Fetch API 發送標準 GET 請求
-            const response = await fetch(fullUrl, { method: 'GET' });
-            
-            if (!response.ok) {
-                // 如果 HTTP 狀態碼不是 200 OK
-                throw new Error(`伺服器錯誤: HTTP ${response.status}`);
-            }
+            const phone = document.getElementById('phone').value.trim();
+            const birthday = document.getElementById('birthday').value.trim();
 
-            // 讀取並解析伺服器回傳的 JSON 數據
-            const data = await response.json(); 
+            const payload = { 
+                action: "login", 
+                phone, 
+                birthday,
+                callback: "handleLoginResponse" 
+            };
             
-            // ----------------------------------------------
-            // 處理回傳結果 (登入成功或失敗)
-            // ----------------------------------------------
-            if (data && data.success === true && data.token) {
-                // 成功邏輯
-                localStorage.setItem('userToken', data.token);
-                const successMsg = data.msg || '登入成功';
-                resultDiv.textContent = successMsg + '，正在跳轉至會員列表...';
-                
-                // 跳轉到 LIST.HTML
-                setTimeout(() => {
-                    window.location.href = "list.html";
-                }, 1500);
+            const script = document.createElement('script');
+            script.src = GAS_URL + '?' + encodeData(payload);
+            script.id = 'jsonpScript';
+            document.head.appendChild(script);
 
-            } else {
-                // 失敗邏輯
-                localStorage.removeItem('userToken');
-                resultDiv.textContent = '登入失敗: ' + ((data && data.msg) || '未知錯誤');
-            }
+            // 設置一個長延遲，作為執行保險
+            setTimeout(() => {
+                // 如果長延遲觸發時，回調函式仍未執行 (isCallbackExecuted 為 false)
+                if (!isCallbackExecuted) {
+                    // 顯示最終錯誤，指向環境問題
+                    resultDiv.textContent = '網路連線異常，伺服器回覆執行被阻止。請禁用瀏覽器擴充功能或使用無痕模式。';
+                    submitButton.disabled = false;
+                }
+            }, 30000); // 30 秒後檢查
 
         } catch (error) {
-            // 處理所有網路錯誤、解析錯誤或自定義錯誤
-            resultDiv.textContent = `網路或伺服器錯誤: ${error.message}`;
-            localStorage.removeItem('userToken');
-        } finally {
-            // 無論成功或失敗，最後都解除按鈕禁用
+            // 捕獲並顯示執行錯誤
+            resultDiv.textContent = `🚨 前端執行錯誤：${error.message}`;
             submitButton.disabled = false;
         }
     });
