@@ -231,7 +231,7 @@ function getMemberList() {
 // --------------------------------------------------------------------
 // 🎯 新增輔助函式：獲取單一會員詳情 (personal.html 使用)
 // --------------------------------------------------------------------
-// 替換您 Code.gs 中現有的 getMemberDetail 函式 (最簡化，適用外部圖床)
+// 替換您 Code.gs 中現有的 getMemberDetail 函式 (使用 Base64 嵌入)
 function getMemberDetail(phone) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const memberSheet = ss.getSheetByName("會員資料");
@@ -240,6 +240,7 @@ function getMemberDetail(phone) {
     const data = memberSheet.getDataRange().getValues();
     if (data.length < 2) return { success: false, msg: "會員表無資料" };
     
+    // 假設登入使用的電話欄位仍然是 "行動電話-帳"
     const header = data[0];
     const phoneIdx = header.indexOf("行動電話-帳");
     
@@ -255,9 +256,10 @@ function getMemberDetail(phone) {
     }
     if (!memberData) return { success: false, msg: "找不到該會員資料" };
 
+    // 抓取您要求的欄位列表
     const fieldsToReturn = [
-        "姓名", "生日", "生日-密", "服務單位", "行動電話-帳", "住家電話", 
-        "通訊地址", "E-mail", "LINE", "經歷", "歿", "照片連結" // 這裡我們只回傳原始連結
+        "姓名", "生日", "服務單位", "行動電話", "住家電話", "職稱", 
+        "通訊地址", "E-mail", "LINE", "經歷", "歿", "照片連結"
     ];
     
     const detail = {};
@@ -266,8 +268,35 @@ function getMemberDetail(phone) {
         detail[field] = idx > -1 ? (memberData[idx] || "") : "";
     });
 
-    // 🚀 核心修正：直接使用原始連結，並重命名為前端所需的鍵值
-    detail["照片URL"] = detail["照片連結"] || ""; 
+    // 🚀 核心 Base64 處理邏輯
+    const photoLink = detail["照片連結"];
+    detail["照片URL"] = ""; // 預設為空字串
+
+    if (photoLink) {
+        // 從常見的分享連結中提取檔案 ID
+        const match = photoLink.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        
+        if (match && match[1]) {
+            const fileId = match[1];
+            
+            try {
+                // 必須開啟 Google Drive API 服務
+                const file = DriveApp.getFileById(fileId);
+                const bytes = file.getBlob().getBytes();
+                const base64Data = Utilities.base64Encode(bytes);
+                const mimeType = file.getMimeType();
+                
+                // 將 Base64 資料轉換成 Data URL 格式 (前端 img src 可直接使用)
+                detail["照片URL"] = `data:${mimeType};base64,${base64Data}`;
+                
+            } catch (e) {
+                // 捕獲檔案 ID 錯誤或 Drive 服務未開啟的錯誤
+                Logger.log("Base64 圖片處理失敗 (ID: " + fileId + "): " + e.message);
+                // 失敗時，返回空字串，讓前端不顯示圖片
+            }
+        }
+    }
+    
     delete detail["照片連結"];
 
     return { success: true, detail: detail };
