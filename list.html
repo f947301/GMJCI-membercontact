@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <title>會員列表</title>
+
 </head>
 <body>
   <h2>會員列表</h2>
   <div id="memberList"></div>
   <div id="pagination"></div>
-
+<script src="config.js"></script> 
   <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbzM1GF4hW2OCaGkMR9Kn3-z6HOI0Kw2UwQ5JhcMS0OMaqbN-5ui6JSIrdXe_74cvxcBcA/exec"; // 您的 GAS Web App URL
     const pageSize = 10;
     let currentPage = 1;
     let members = [];
@@ -90,7 +90,7 @@
           <div>
             <div>
                 <a href="personal.html?phone=${encodeURIComponent(phone)}">
-                    **姓名: ${nameDisplay}**
+                    姓名: ${nameDisplay}
                 </a>
             </div>
             <div>服務單位: ${member["服務單位"] || 'N/A'}</div>
