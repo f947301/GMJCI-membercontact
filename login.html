@@ -23,9 +23,6 @@
     // 💡 請替換成您的實際 /exec URL
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyvIXS-clVEv78Um5sFNX3wOy7rSU7Xii9cNJjtdpv2iLlEH9zUo5mO8-ldTNFzTy3o_w/exec";
     
-    // 輔助變數：用於追蹤 handleLoginResponse 是否已被執行
-    let isCallbackExecuted = false; 
-
     // 輔助函式：將 JS 物件轉換為 URL 查詢字串
     function encodeData(data) {
         return Object.keys(data).map(key => 
@@ -34,26 +31,47 @@
     }
 
     // ------------------------------------------------------------------
-    // JSONP 全域回調函式 (處理 GAS 回傳的結果)
+    // 表單提交事件處理 (使用 Fetch API)
     // ------------------------------------------------------------------
-    window.handleLoginResponse = function(data) {
-        // 核心修正：標記回調已被執行
-        isCallbackExecuted = true; 
+    form.addEventListener('submit', async function(e){
+        e.preventDefault();
         
         const submitButton = form.querySelector('button[type="submit"]');
+        if (!submitButton) {
+             resultDiv.textContent = "錯誤：找不到提交按鈕。";
+             return; 
+        }
 
-        // 確保所有狀態更新優先執行
-        setTimeout(() => { 
-            if (submitButton) {
-                submitButton.disabled = false;
-            }
+        submitButton.disabled = true;
+        resultDiv.textContent = LOADING_TEXT;
+        
+        const phone = document.getElementById('phone').value.trim();
+        const birthday = document.getElementById('birthday').value.trim();
 
-            const scriptElement = document.getElementById('jsonpScript');
-            if (scriptElement) {
-                scriptElement.remove();
-            }
+        // 構建請求參數 (不需要 callback 參數)
+        const payload = { 
+            action: "login", 
+            phone, 
+            birthday
+        };
+        
+        const fullUrl = GAS_URL + '?' + encodeData(payload);
+
+        try {
+            // 🚀 使用 Fetch API 發送標準 GET 請求
+            const response = await fetch(fullUrl, { method: 'GET' });
             
-            // 檢查回傳的數據狀態 (這裡就是讀取內容並做判讀的地方)
+            if (!response.ok) {
+                // 如果 HTTP 狀態碼不是 200 OK
+                throw new Error(`伺服器錯誤: HTTP ${response.status}`);
+            }
+
+            // 讀取並解析伺服器回傳的 JSON 數據
+            const data = await response.json(); 
+            
+            // ----------------------------------------------
+            // 處理回傳結果 (登入成功或失敗)
+            // ----------------------------------------------
             if (data && data.success === true && data.token) {
                 // 成功邏輯
                 localStorage.setItem('userToken', data.token);
@@ -70,54 +88,13 @@
                 localStorage.removeItem('userToken');
                 resultDiv.textContent = '登入失敗: ' + ((data && data.msg) || '未知錯誤');
             }
-        }, 0); 
-    }
-
-    // ------------------------------------------------------------------
-    // 表單提交事件處理
-    // ------------------------------------------------------------------
-    form.addEventListener('submit', function(e){
-        e.preventDefault();
-        
-        const submitButton = form.querySelector('button[type="submit"]');
-        if (!submitButton) {
-             resultDiv.textContent = "錯誤：找不到提交按鈕。";
-             return; 
-        }
-
-        submitButton.disabled = true;
-        resultDiv.textContent = LOADING_TEXT;
-        isCallbackExecuted = false; // 重設追蹤標記
-
-        try {
-            const phone = document.getElementById('phone').value.trim();
-            const birthday = document.getElementById('birthday').value.trim();
-
-            const payload = { 
-                action: "login", 
-                phone, 
-                birthday,
-                callback: "handleLoginResponse" 
-            };
-            
-            const script = document.createElement('script');
-            script.src = GAS_URL + '?' + encodeData(payload);
-            script.id = 'jsonpScript';
-            document.head.appendChild(script);
-
-            // 設置一個長延遲，作為執行保險
-            setTimeout(() => {
-                // 如果長延遲觸發時，回調函式仍未執行 (isCallbackExecuted 為 false)
-                if (!isCallbackExecuted) {
-                    // 顯示嚴重錯誤，因為腳本已載入但未執行
-                    resultDiv.textContent = '嚴重錯誤：伺服器回覆已載入，但執行被阻止。請禁用瀏覽器擴充功能。';
-                    submitButton.disabled = false;
-                }
-            }, 30000); // 30 秒後檢查
 
         } catch (error) {
-            // 捕獲並顯示執行錯誤
-            resultDiv.textContent = `🚨 前端執行錯誤：${error.message}`;
+            // 處理所有網路錯誤、解析錯誤或自定義錯誤
+            resultDiv.textContent = `網路或伺服器錯誤: ${error.message}`;
+            localStorage.removeItem('userToken');
+        } finally {
+            // 無論成功或失敗，最後都解除按鈕禁用
             submitButton.disabled = false;
         }
     });
