@@ -231,7 +231,7 @@ function getMemberList() {
 // --------------------------------------------------------------------
 // 🎯 新增輔助函式：獲取單一會員詳情 (personal.html 使用)
 // --------------------------------------------------------------------
-// 替換您 Code.gs 中現有的 getMemberDetail 函式
+// 替換您 Code.gs 中現有的 getMemberDetail 函式 (最簡化，適用外部圖床)
 function getMemberDetail(phone) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const memberSheet = ss.getSheetByName("會員資料");
@@ -246,8 +246,6 @@ function getMemberDetail(phone) {
     if (phoneIdx === -1) return { success: false, msg: "找不到行動電話欄位" };
 
     let memberData = null;
-
-    // 尋找匹配電話號碼的會員
     for (let i = 1; i < data.length; i++) {
         const phoneVal = (data[i][phoneIdx] || "").toString().trim();
         if (phoneVal === phone) {
@@ -255,13 +253,11 @@ function getMemberDetail(phone) {
             break;
         }
     }
-
     if (!memberData) return { success: false, msg: "找不到該會員資料" };
 
-    // 🎯 簡化：直接抓取所有前端需要的原始欄位
     const fieldsToReturn = [
-        "姓名", "生日", "服務單位", "行動電話", "住家電話", 
-        "通訊地址", "E-mail", "LINE", "經歷", "歿", "照片連結"
+        "姓名", "生日", "生日-密", "服務單位", "行動電話-帳", "住家電話", 
+        "通訊地址", "E-mail", "LINE", "經歷", "歿", "照片連結" // 這裡我們只回傳原始連結
     ];
     
     const detail = {};
@@ -270,21 +266,8 @@ function getMemberDetail(phone) {
         detail[field] = idx > -1 ? (memberData[idx] || "") : "";
     });
 
-    // 關鍵轉換邏輯：將 Google Drive 連結轉換為直接圖片 URL
-    const photoLink = detail["照片連結"];
-    if (photoLink) {
-        const match = photoLink.match(/\/d\/([a-zA-Z0-9_-]+)/);
-        if (match && match[1]) {
-            const fileId = match[1];
-            detail["照片URL"] = `https://drive.google.com/uc?export=view&id=${fileId}`;
-        } else {
-            detail["照片URL"] = photoLink; 
-        }
-    } else {
-        detail["照片URL"] = "";
-    }
-    
-    // 移除原始的 '照片連結' 欄位，避免資料冗餘
+    // 🚀 核心修正：直接使用原始連結，並重命名為前端所需的鍵值
+    detail["照片URL"] = detail["照片連結"] || ""; 
     delete detail["照片連結"];
 
     return { success: true, detail: detail };
