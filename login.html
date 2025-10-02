@@ -19,11 +19,15 @@
     // ------------------------------------------------------------------
     const form = document.getElementById('loginForm');
     const resultDiv = document.getElementById('loginResult');
+    const LOADING_TEXT = '處理中...';
     // 💡 請替換成您的實際 /exec URL
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyvIXS-clVEv78Um5sFNX3wOy7rSU7Xii9cNJjtdpv2iLlEH9zUo5mO8-ldTNFzTy3o_w/exec";
     
-    // 儲存超時計時器的 ID
-    let timeoutId = null; 
+    // 輪詢控制變數
+    let pollingTimerId = null; 
+    let checkCount = 0;
+    const MAX_CHECKS = 5; // 最大檢查次數
+    const CHECK_INTERVAL = 3000; // 3 秒間隔
 
     // 輔助函式：將 JS 物件轉換為 URL 查詢字串
     function encodeData(data) {
@@ -33,19 +37,19 @@
     }
 
     // ------------------------------------------------------------------
-    // JSONP 全域回調函式 (處理 GAS 回傳的結果)
+    // JSONP 全域回調函式 (處理 GAS 回傳的結果) - 成功執行後會清除輪詢
     // ------------------------------------------------------------------
     window.handleLoginResponse = function(data) {
         const submitButton = form.querySelector('button[type="submit"]');
 
-        // 核心修正：將所有狀態更新包裝在 setTimeout(..., 0) 裡
-        // 這會將任務推入事件隊列尾部，確保在瀏覽器處理其他延遲任務前執行。
+        // 核心修正：JSONP 腳本一旦執行，立即清除輪詢計時器
+        if (pollingTimerId !== null) {
+            clearInterval(pollingTimerId);
+            pollingTimerId = null;
+        }
+
+        // 立即處理所有狀態更新 (使用 setTimeout(..., 0) 確保優先級)
         setTimeout(() => { 
-            // 1. 清除超時計時器與按鈕禁用狀態
-            if (timeoutId !== null) {
-                clearTimeout(timeoutId);
-                timeoutId = null;
-            }
             if (submitButton) {
                 submitButton.disabled = false;
             }
@@ -62,17 +66,59 @@
                 const successMsg = data.msg || '登入成功';
                 resultDiv.textContent = successMsg + '，正在跳轉至會員列表...';
                 
-                // 延遲跳轉
                 setTimeout(() => {
                     window.location.href = "list.html";
                 }, 1500);
 
             } else {
-                // 失敗邏輯 (這就是我們要強制顯示的 "帳號或密碼錯誤")
+                // 失敗邏輯 (顯示來自後端的錯誤訊息)
                 localStorage.removeItem('userToken');
                 resultDiv.textContent = '登入失敗: ' + ((data && data.msg) || '未知錯誤');
             }
-        }, 0); // 立即執行，但優先級高於普通 setTimeout
+        }, 0); 
+    }
+
+    // ------------------------------------------------------------------
+    // 定時輪詢函式：檢查 Script 狀態
+    // ------------------------------------------------------------------
+    function checkScriptStatus() {
+        checkCount++;
+        const submitButton = form.querySelector('button[type="submit"]');
+        const scriptElement = document.getElementById('jsonpScript');
+
+        if (scriptElement && scriptElement.src.startsWith(GAS_URL)) {
+            // 情況 1: 腳本已成功加入 DOM
+            // 此時我們停止輪詢，等待瀏覽器執行腳本並呼叫 handleLoginResponse。
+            if (pollingTimerId !== null) {
+                clearInterval(pollingTimerId);
+                pollingTimerId = null;
+                // 提示：腳本已載入，等待執行結果...
+                resultDiv.textContent = '載入完成，等待伺服器回覆...';
+                
+                // 設置一個單一的長超時（30秒），防止回調永遠不執行。
+                // 如果 30 秒後仍未呼叫 handleLoginResponse，才視為真正的執行失敗。
+                pollingTimerId = setTimeout(() => {
+                    if (submitButton.disabled) {
+                        resultDiv.textContent = '網路連線異常，伺服器無回應。';
+                        submitButton.disabled = false;
+                    }
+                    pollingTimerId = null;
+                }, 30000);
+            }
+        } else if (checkCount >= MAX_CHECKS) {
+            // 情況 2: 超過最大檢查次數 (5 次 x 3 秒 = 15 秒)
+            clearInterval(pollingTimerId);
+            pollingTimerId = null;
+            
+            // 顯示最終錯誤
+            resultDiv.textContent = '網路連線異常，請檢查網路或重試。';
+            if (submitButton) {
+                submitButton.disabled = false;
+            }
+        } else {
+            // 情況 3: 腳本尚未加入 DOM，繼續等待
+            resultDiv.textContent = `${LOADING_TEXT} (第 ${checkCount} 次檢查...)`;
+        }
     }
 
     // ------------------------------------------------------------------
@@ -82,16 +128,17 @@
         e.preventDefault();
         
         const submitButton = form.querySelector('button[type="submit"]');
-        
         if (!submitButton) {
              resultDiv.textContent = "錯誤：找不到提交按鈕。";
              return; 
         }
 
         submitButton.disabled = true;
-        resultDiv.textContent = '處理中...'; 
+        resultDiv.textContent = LOADING_TEXT;
+        checkCount = 0; // 重設計數器
 
         try {
+            // ... (構建 Payload 保持不變) ...
             const phone = document.getElementById('phone').value.trim();
             const birthday = document.getElementById('birthday').value.trim();
 
@@ -102,29 +149,22 @@
                 callback: "handleLoginResponse" 
             };
             
+            // 創建並附加腳本標籤 (發送請求)
             const script = document.createElement('script');
             script.src = GAS_URL + '?' + encodeData(payload);
             script.id = 'jsonpScript';
-            
             document.head.appendChild(script);
 
-            // 設置一個極長的超時時間，以防萬一
-            timeoutId = setTimeout(() => {
-                 // 只有在按鈕仍禁用時，才顯示最終超時錯誤
-                 if (submitButton.disabled) {
-                    resultDiv.textContent = '網路連線異常，請檢查網路或重試。';
-                    submitButton.disabled = false;
-                    timeoutId = null; 
-                 }
-            }, 30000); // 延長至 30 秒，作為最終備案
+            // 啟動定時輪詢，開始檢查腳本狀態
+            pollingTimerId = setInterval(checkScriptStatus, CHECK_INTERVAL);
 
         } catch (error) {
             // 捕獲並顯示執行錯誤
             resultDiv.textContent = `🚨 前端執行錯誤：${error.message}`;
             submitButton.disabled = false;
-            if (timeoutId !== null) {
-                clearTimeout(timeoutId);
-                timeoutId = null;
+            if (pollingTimerId !== null) {
+                clearInterval(pollingTimerId);
+                pollingTimerId = null;
             }
         }
     });
