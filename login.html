@@ -20,10 +20,11 @@
     const form = document.getElementById('loginForm');
     const resultDiv = document.getElementById('loginResult');
     const LOADING_TEXT = '處理中...';
-    // 💡 請確保這是您部署後最新的 /exec URL
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyvIXS-clVEv78Um5sFNX3wOy7rSU7Xii9cNJjtdpv2iLlEH9zUo5mO8-ldTNFzTy3o_w/exec";
     
-    // 輔助函式：將 JS 物件轉換為 URL 查詢字串
+    // 輔助變數：追蹤回調是否已成功執行
+    let isCallbackExecuted = false; 
+
     function encodeData(data) {
         return Object.keys(data).map(key => 
             encodeURIComponent(key) + '=' + encodeURIComponent(data[key])
@@ -31,18 +32,17 @@
     }
 
     // ------------------------------------------------------------------
-    // JSONP 全域回調函式 (處理 GAS 回傳的結果) - 這裡就是讀取訊息的地方
+    // JSONP 全域回調函式 (讀取資料並更新畫面)
     // ------------------------------------------------------------------
     window.handleLoginResponse = function(data) {
-        // 核心目標：只要被呼叫，就立即更新狀態
+        // 🚀 這是用來讀取資料和更新畫面的程式碼
+        isCallbackExecuted = true; // 標記已執行
         
-        // 確保元素存在 (增加容錯性)
         const form = document.getElementById('loginForm');
         const resultDiv = document.getElementById('loginResult');
         const submitButton = form ? form.querySelector('button[type="submit"]') : null;
         const scriptElement = document.getElementById('jsonpScript');
 
-        // 1. **解除按鈕禁用和移除腳本 (同步執行)**
         if (submitButton) {
             submitButton.disabled = false;
         }
@@ -50,25 +50,19 @@
             scriptElement.remove();
         }
         
-        // 2. **讀取回傳的數據 (data) 並做判讀**
+        // 核心邏輯：根據 data 內容更新畫面
         if (data && data.success === true && data.token) {
-            // 成功邏輯
             localStorage.setItem('userToken', data.token);
             const successMsg = data.msg || '登入成功';
-            
-            // 畫面顯示：成功訊息
             resultDiv.textContent = successMsg + '，正在跳轉至會員列表...';
             
-            // 延遲跳轉到 LIST.HTML
             setTimeout(() => {
                 window.location.href = "list.html";
             }, 1500);
 
         } else {
-            // 失敗邏輯 (直接讀取 msg 內容)
+            // 畫面顯示您期待的訊息
             localStorage.removeItem('userToken');
-            
-            // 畫面顯示：失敗訊息
             resultDiv.textContent = '登入失敗: ' + ((data && data.msg) || '未知錯誤');
         }
     }
@@ -87,6 +81,7 @@
 
         submitButton.disabled = true;
         resultDiv.textContent = LOADING_TEXT;
+        isCallbackExecuted = false; // 重設標記
         
         try {
             const phone = document.getElementById('phone').value.trim();
@@ -96,19 +91,35 @@
                 action: "login", 
                 phone, 
                 birthday,
-                callback: "handleLoginResponse" // 🔴 必須包含 callback
+                callback: "handleLoginResponse" 
             };
             
-            // 創建腳本標籤來發送請求
             const script = document.createElement('script');
             script.src = GAS_URL + '?' + encodeData(payload);
             script.id = 'jsonpScript';
+            
+            // 🔴 關鍵修正：加入 onload/onerror 監聽器
+            // 即使腳本被阻止執行，這個 onload 仍會觸發。
+            script.onload = function() {
+                // 如果腳本載入成功，但 handleLoginResponse 在短時間內沒有被呼叫
+                setTimeout(() => {
+                    if (!isCallbackExecuted) {
+                        // 這是最終的診斷，表示腳本已被載入但執行被阻擋
+                        resultDiv.textContent = '載入完成，但執行失敗。請檢查擴充功能或改用 Fetch API。';
+                        submitButton.disabled = false;
+                    }
+                }, 1000); // 給予 1 秒的緩衝時間讓回調函式執行
+            };
+
+            script.onerror = function() {
+                // 網路層級的錯誤
+                resultDiv.textContent = '網路連線中斷或資源無法取得。';
+                submitButton.disabled = false;
+            };
+
             document.head.appendChild(script);
 
-            // ⚠️ 這裡不再包含任何 setTimeout 或輪詢，將所有控制權交給 handleLoginResponse。
-
         } catch (error) {
-            // 捕獲並顯示執行錯誤
             resultDiv.textContent = `🚨 前端執行錯誤：${error.message}`;
             submitButton.disabled = false;
         }
