@@ -36,41 +36,49 @@
     // ------------------------------------------------------------------
     // JSONP 全域回調函式 (處理 GAS 回傳的結果)
     // ------------------------------------------------------------------
-    window.handleLoginResponse = function(data) {
-        // 核心修正：標記回調已被執行，並確保狀態同步更新
-        isCallbackExecuted = true; 
-        
-        const submitButton = form.querySelector('button[type="submit"]');
+    // ------------------------------------------------------------------
+// JSONP 全域回調函式 (處理 GAS 回傳的結果) - 這裡就是讀取訊息的地方
+// ------------------------------------------------------------------
+window.handleLoginResponse = function(data) {
+    // 獲取 DOM 元素 (確保能夠找到)
+    const form = document.getElementById('loginForm');
+    const resultDiv = document.getElementById('loginResult');
+    const submitButton = form ? form.querySelector('button[type="submit"]') : null;
+    const scriptElement = document.getElementById('jsonpScript');
 
-        // 移除 setTimeout(..., 0)，強制同步更新狀態
-        if (submitButton) {
-            submitButton.disabled = false;
-        }
-
-        const scriptElement = document.getElementById('jsonpScript');
-        if (scriptElement) {
-            scriptElement.remove();
-        }
-        
-        // 檢查回傳的數據狀態 (這裡就是讀取內容並做判讀的地方)
-        if (data && data.success === true && data.token) {
-            // 成功邏輯
-            localStorage.setItem('userToken', data.token);
-            const successMsg = data.msg || '登入成功';
-            resultDiv.textContent = successMsg + '，正在跳轉至會員列表...';
-            
-            // 延遲跳轉到 LIST.HTML
-            setTimeout(() => {
-                window.location.href = "list.html";
-            }, 1500);
-
-        } else {
-            // 失敗邏輯
-            localStorage.removeItem('userToken');
-            resultDiv.textContent = '登入失敗: ' + ((data && data.msg) || '未知錯誤');
-        }
+    // 1. **核心步驟**：解除按鈕禁用和移除腳本
+    if (submitButton) {
+        submitButton.disabled = false;
     }
+    if (scriptElement) {
+        scriptElement.remove();
+    }
+    
+    // 2. **核心步驟**：讀取回傳的數據 (data)
+    if (data && data.success === true && data.token) {
+        // 成功邏輯
+        localStorage.setItem('userToken', data.token);
+        const successMsg = data.msg || '登入成功';
+        
+        // 畫面顯示：成功訊息
+        resultDiv.textContent = successMsg + '，正在跳轉至會員列表...';
+        
+        // 延遲跳轉到 LIST.HTML
+        setTimeout(() => {
+            window.location.href = "list.html";
+        }, 1500);
 
+    } else {
+        // 失敗邏輯 (您目前的狀況會走這裡)
+        localStorage.removeItem('userToken');
+        
+        // 畫面顯示：失敗訊息 (直接讀取 msg 內容)
+        resultDiv.textContent = '登入失敗: ' + ((data && data.msg) || '未知錯誤');
+    }
+    
+    // 📌 注意：我們不再使用任何 setTimeout(..., 0) 或 isCallbackExecuted 標記。
+}
+// 請確保您的 form.addEventListener 邏輯仍然存在，且沒有包含任何 setTimeout 進行競爭。
     // ------------------------------------------------------------------
     // 表單提交事件處理
     // ------------------------------------------------------------------
