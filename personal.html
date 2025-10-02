@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>會員詳情</title>
+  <style>
+    .detail-container {
+        max-width: 600px;
+        margin: 20px auto;
+        padding: 20px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+    }
+    .detail-item {
+        margin-bottom: 10px;
+        line-height: 1.5;
+    }
+    .detail-item strong {
+        display: inline-block;
+        width: 100px;
+        color: #333;
+    }
+    .deceased {
+        color: red;
+        font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <a href="list.html">返回會員列表</a>
+  <h2 id="pageTitle">會員資料載入中...</h2>
+  <div id="personalDetail" class="detail-container">
+    </div>
+  <div id="message" style="color: red; margin-top: 20px;"></div>
+
+  <script>
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbx04rNTTxPOHn6mAvQAL7MUSwJdR9-LKzA0-ng4Q7PjReGwjdKdzXmPWIINBTGAU5TIyA/exec"; // 您的 GAS URL
+    
+    // 輔助函式：從 URL 獲取參數
+    function getUrlParameter(name) {
+        name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+        const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+        const results = regex.exec(location.search);
+        return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+    };
+    
+    // 輔助函式：將 JS 物件轉換為 URL 查詢字串
+    function encodeData(data) {
+        return Object.keys(data).map(key => 
+            encodeURIComponent(key) + '=' + encodeURIComponent(data[key])
+        ).join('&');
+    }
+
+    async function fetchPersonalDetail() {
+        const phone = getUrlParameter('phone');
+        const token = localStorage.getItem('userToken');
+        const detailDiv = document.getElementById("personalDetail");
+        const msgDiv = document.getElementById("message");
+
+        if (!phone) {
+            msgDiv.textContent = "錯誤：URL 中缺少會員電話號碼。";
+            return;
+        }
+        if (!token) {
+            alert("請先登入！");
+            window.location.href = "login.html";
+            return;
+        }
+
+        const payload = { 
+            action: "getDetail", // 🎯 使用新的 GAS 動作
+            phone: phone,
+            token: token
+        };
+        
+        const fullUrl = GAS_URL + '?' + encodeData(payload);
+
+        try {
+            const resp = await fetch(fullUrl, { method: "GET" });
+            
+            if (!resp.ok) {
+                throw new Error(`HTTP 錯誤狀態: ${resp.status}`);
+            }
+            
+            const result = await resp.json();
+            
+            if (result.success && result.detail) {
+                renderDetail(result.detail);
+            } else if (result.msg) {
+                 msgDiv.textContent = "錯誤: " + result.msg;
+                 // 如果未授權，跳回登入頁
+                 if (result.msg.includes("未授權")) { 
+                     setTimeout(() => { window.location.href = "login.html"; }, 1500);
+                 }
+            } else {
+                throw new Error("伺服器回傳格式錯誤或未提供會員詳情。");
+            }
+
+        } catch(err) {
+            msgDiv.textContent = "資料載入失敗: " + err.message;
+            console.error(err);
+        }
+    }
+
+    function renderDetail(member) {
+        const detailDiv = document.getElementById("personalDetail");
+        
+        // 1. 檢查 "歿" 欄位，如有資料則在姓名後方加上*字
+        const isDeceased = member["歿"] && String(member["歿"]).trim() !== '';
+        const nameDisplay = member["姓名"] + (isDeceased ? '*' : '');
+        
+        // 更新標題
+        document.getElementById("pageTitle").textContent = `會員詳情：${nameDisplay}`;
+
+        // 2. 渲染詳情列表
+        // 🎯 注意：欄位名稱需與 Code.gs 中 getMemberDetail 返回的欄位名稱一致
+        const fields = {
+            "姓名": nameDisplay,
+            "生日": member["生日-密"] || 'N/A', // 假設這是生日欄位
+            "服務單位": member["服務單位"] || 'N/A',
+            "行動電話": member["行動電話-帳"] || 'N/A',
+            "住家電話": member["住家電話"] || 'N/A',
+            "通訊地址": member["通訊地址"] || 'N/A',
+            "E-mail": member["E-mail"] || 'N/A',
+            "LINE": member["LINE"] || 'N/A',
+            "經歷": member["經歷"] || 'N/A',
+        };
+
+        let htmlContent = '';
+        for (const label in fields) {
+            // 讓姓名在死亡時特別突出
+            const valueClass = (label === '姓名' && isDeceased) ? 'deceased' : '';
+            htmlContent += `
+                <div class="detail-item">
+                    <strong>${label}:</strong> 
+                    <span class="${valueClass}">${fields[label]}</span>
+                </div>
+            `;
+        }
+        
+        detailDiv.innerHTML = htmlContent;
+    }
+
+    // 頁面載入時執行
+    fetchPersonalDetail();
+  </script>
+</body>
+</html>

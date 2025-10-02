@@ -10,7 +10,7 @@
   <div id="pagination"></div>
 
   <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbz5hEl9vl0ciMxgviNp1GM1o7umOQ_FOFqtmm0t3L1vX64JqQyCmqVQb48Dv_Nm2Jr44g/exec"; // 您的 GAS Web App URL
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbx04rNTTxPOHn6mAvQAL7MUSwJdR9-LKzA0-ng4Q7PjReGwjdKdzXmPWIINBTGAU5TIyA/exec"; // 您的 GAS Web App URL
     const pageSize = 10;
     let currentPage = 1;
     let members = [];
@@ -67,7 +67,6 @@
     }
 
     function renderPage(page) {
-      // ... (這部分邏輯保持不變) ...
       const listDiv = document.getElementById("memberList");
       listDiv.innerHTML = "";
 
@@ -76,11 +75,24 @@
       const pageItems = members.slice(start, end);
 
       pageItems.forEach(member => {
+        // 1. 獲取唯一的識別碼（電話號碼），用於傳遞給 personal.html
+        const phone = member["行動電話-帳"];
+        
+        // 2. 檢查 "歿" 欄位，如果它有值，則在姓名後加 *
+        const isDeceased = member["歿"] && String(member["歿"]).trim() !== '';
+        const nameText = member["姓名"] || 'N/A';
+        const nameDisplay = nameText + (isDeceased ? '*' : '');
+        
         const div = document.createElement("div");
-        // 🔹 每個會員資料放入 div，可自行 RWD 調整
+        
+        // 🔹 核心修正：將姓名用 <a> 標籤包裝，並傳遞 phone 參數
         div.innerHTML = `
           <div>
-            <div>姓名: ${member["姓名"] || 'N/A'}</div>
+            <div>
+                <a href="personal.html?phone=${encodeURIComponent(phone)}">
+                    **姓名: ${nameDisplay}**
+                </a>
+            </div>
             <div>服務單位: ${member["服務單位"] || 'N/A'}</div>
             <div>行動電話: ${member["行動電話-帳"] || 'N/A'}</div>
             <div>通訊地址: ${member["通訊地址"] || 'N/A'}</div>
