@@ -6,24 +6,18 @@
 // --------------------------------------------------------------------
 // 處理 GET 請求 (JSONP 核心)
 // --------------------------------------------------------------------
+// 替換您 Code.gs 中的 doGet(e) 函式
 function doGet(e) {
   let result;
   const params = e.parameter; 
-  const callbackName = params.callback; 
-  
-  if (!callbackName) {
-      // 如果沒有 callback 參數，則回傳純 JSON 錯誤
-      return ContentService.createTextOutput(JSON.stringify({success: false, msg: "Error: Callback parameter required."}))
-             .setMimeType(ContentService.MimeType.JSON);
-  }
+  const callbackName = params.callback; // Fetch API 模式下，這個變數會是空的
   
   try {
     const action = params.action;
-
+    // ... (核心業務邏輯保持不變) ...
     if (action === "login") {
       const phone = params.phone;
       const birthday = params.birthday;
-      
       result = checkMemberLogin(phone, birthday);
       if (result.success) {
         result.token = generateToken(result.name);
@@ -32,38 +26,30 @@ function doGet(e) {
     } else if (action === "getList") {
       const token = params.token;
       const tokenCheck = validateToken(token);
-
       if (tokenCheck.success) {
         result = getMemberList(); 
       } else {
         result = { success: false, msg: tokenCheck.msg || "未授權訪問" };
       }
     } else {
-      result = { success:false, msg:"未知請求" };
+      result = { success:false, msg:"未知請求或 action 參數遺失" };
     }
   } catch(err) {
     result = { success:false, msg:"伺服器處理請求異常: " + err.message };
   }
 
-  // 🔹 最終修正：手動構造 JSONP 字串，完全避免 setCallback
-  const jsonString = JSON.stringify(result);
-  const jsonpOutputString = `${callbackName}(${jsonString})`; // 格式：handleLoginResponse({...})
-  
-  // 🔹 我們只呼叫 createTextOutput 和 setMimeType
-  let output = ContentService.createTextOutput(jsonpOutputString);
-  output = output.setMimeType(ContentService.MimeType.JSONP); // 這裡不再連鎖呼叫
-
-  return output; 
-}
-
-// --------------------------------------------------------------------
-// (以下 doPost 及輔助函式保持不變，略過以維持排版清晰)
-// --------------------------------------------------------------------
-// 處理 POST 請求 (API 核心)
-function doPost(e) {
-    // 由於採用 JSONP/GET 模式，doPost 應被忽略或回傳錯誤訊息
-    let output = ContentService.createTextOutput(JSON.stringify({success: false, msg: "請使用 GET 請求 (JSONP 模式)。"}));
-    return output.setMimeType(ContentService.MimeType.JSON);
+  // 🔴 關鍵修正：允許純 JSON 回傳
+  if (callbackName) {
+      // JSONP 模式 (手動拼接字串，保留給其他相容性需求)
+      const jsonString = JSON.stringify(result);
+      const jsonpOutputString = `${callbackName}(${jsonString})`; 
+      let output = ContentService.createTextOutput(jsonpOutputString);
+      return output.setMimeType(ContentService.MimeType.JSONP); 
+  } else {
+      // 🚀 純 JSON 模式 (Fetch API 專用，解決您的問題)
+      let output = ContentService.createTextOutput(JSON.stringify(result));
+      return output.setMimeType(ContentService.MimeType.JSON); // 確保回傳 MIME Type: application/json
+  }
 }
 
 // 輔助函式... (checkMemberLogin, generateToken, validateToken, getMemberList) ...
