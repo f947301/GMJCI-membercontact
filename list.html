@@ -10,26 +10,64 @@
   <div id="pagination"></div>
 
   <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbz5hEl9vl0ciMxgviNp1GM1o7umOQ_FOFqtmm0t3L1vX64JqQyCmqVQb48Dv_Nm2Jr44g/exec"; // 替換成你的 GAS Web App URL
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbz5hEl9vl0ciMxgviNp1GM1o7umOQ_FOFqtmm0t3L1vX64JqQyCmqVQb48Dv_Nm2Jr44g/exec"; // 您的 GAS Web App URL
     const pageSize = 10;
     let currentPage = 1;
     let members = [];
 
+    // 輔助函式：將 JS 物件轉換為 URL 查詢字串
+    function encodeData(data) {
+        return Object.keys(data).map(key => 
+            encodeURIComponent(key) + '=' + encodeURIComponent(data[key])
+        ).join('&');
+    }
+
     async function fetchMembers() {
+      // 📌 核心修正：改用 GET 請求，並將 action 參數放入 URL 中
+      const payload = { 
+          action: "getList",
+          // 💡 為了後續處理，這裡應該要加入您在登入時儲存的 token
+          token: localStorage.getItem('userToken') 
+      };
+      
+      const fullUrl = GAS_URL + '?' + encodeData(payload);
+
       try {
-        const resp = await fetch(GAS_URL, {
-          method: "POST",
-          body: JSON.stringify({ action:"getList" }),
-          headers: { "Content-Type": "application/json" }
-        });
-        members = await resp.json();
-        renderPage(currentPage);
+        // 🚀 使用 GET 請求 (這是 GAS doGet 函式最穩定的接收方式)
+        const resp = await fetch(fullUrl, { method: "GET" });
+        
+        if (!resp.ok) {
+            throw new Error(`HTTP 錯誤狀態: ${resp.status}`);
+        }
+        
+        const result = await resp.json();
+        
+        // 檢查 GAS 回傳的 success 狀態 (這一步非常重要，因為我們知道您的 GAS 會回傳結構化的 JSON)
+        if (result.success && result.list) {
+            members = result.list;
+            renderPage(currentPage);
+        } else if (result.msg) {
+             // 處理未授權或伺服器回傳的錯誤訊息
+             document.getElementById("memberList").textContent = "錯誤: " + result.msg;
+             
+             // 💡 額外處理：如果未授權，跳回登入頁
+             if (result.msg.includes("未授權")) { 
+                 alert("會話過期或未登入，請重新登入！");
+                 window.location.href = "login.html";
+             }
+        } else {
+            throw new Error("伺服器回傳格式錯誤或未提供清單。");
+        }
+        
       } catch(err) {
-        document.getElementById("memberList").textContent = "資料載入失敗：" + err.message;
+        // 處理網路錯誤或解析錯誤
+        document.getElementById("memberList").textContent = "資料載入失敗: " + err.message;
+        console.error(err);
       }
     }
 
     function renderPage(page) {
+      // ... (這部分邏輯保持不變) ...
       const listDiv = document.getElementById("memberList");
       listDiv.innerHTML = "";
 
@@ -42,13 +80,12 @@
         // 🔹 每個會員資料放入 div，可自行 RWD 調整
         div.innerHTML = `
           <div>
-            <div>姓名: ${member["姓名"]}</div>
-            <div>生日: ${member["生日"]}</div>
-            <div>服務單位: ${member["服務單位"]}</div>
-            <div>行動電話: ${member["行動電話-帳"]}</div>
-            <div>通訊地址: ${member["通訊地址"]}</div>
-            <div>E-mail: ${member["E-mail"]}</div>
-            <div>LINE: ${member["LINE"]}</div>
+            <div>姓名: ${member["姓名"] || 'N/A'}</div>
+            <div>服務單位: ${member["服務單位"] || 'N/A'}</div>
+            <div>行動電話: ${member["行動電話-帳"] || 'N/A'}</div>
+            <div>通訊地址: ${member["通訊地址"] || 'N/A'}</div>
+            <div>E-mail: ${member["E-mail"] || 'N/A'}</div>
+            <div>LINE: ${member["LINE"] || 'N/A'}</div>
           </div>
           <hr>
         `;
@@ -59,6 +96,7 @@
     }
 
     function renderPagination() {
+      // ... (這部分邏輯保持不變) ...
       const pageCount = Math.ceil(members.length / pageSize);
       const pagDiv = document.getElementById("pagination");
       pagDiv.innerHTML = "";
@@ -75,7 +113,14 @@
       }
     }
 
-    fetchMembers();
-  </script>
+    // 確保頁面載入時檢查登入狀態並嘗試獲取資料
+    const token = localStorage.getItem('userToken');
+    if (!token) {
+        alert("請先登入！");
+        window.location.href = "login.html";
+    } else {
+        fetchMembers();
+    }
+</script>
 </body>
 </html>
