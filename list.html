@@ -109,11 +109,11 @@ function renderPage(page) {
                     姓名: ${nameDisplay}
                 </a>
             </div>
-            <div class="list-com">服務單位: ${getValue("服務單位")}</div>
-            <div class="list-tel">行動電話: ${getValue("行動電話-帳")}</div>
-            <div class="list-addr">通訊地址: ${getValue("通訊地址")}</div>
-            <div class="list-email">E-mail: ${getValue("E-mail")}</div>
-            <div class="list-line">LINE: ${getValue("LINE")}</div>
+            <div class="list-com">${getValue("服務單位")}</div>
+            <div class="list-tel">${getValue("行動電話-帳")}</div>
+            <div class="list-addr">${getValue("通訊地址")}</div>
+            <div class="list-email">${getValue("E-mail")}</div>
+            <div class="list-line">${getValue("LINE")}</div>
         `;
         
         listDiv.appendChild(div);
