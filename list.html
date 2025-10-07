@@ -84,13 +84,13 @@ function renderPage(page) {
 
     // 🎯 1. 插入標題列 HTML 結構
     const headerHtml = `
-        <div class="list-r list-h">
+        <div class="list-r list-h>
             <div class="list-name">姓名</div>
-            <div class="list-com">服務單位</div>
+            <div class="list-com pc-s">服務單位</div>
             <div class="list-tel">行動電話</div>
-            <div class="list-addr">通訊地址</div>
+            <div class="list-addr pc-s">通訊地址</div>
             <div class="list-email">E-mail</div>
-            <div class="list-line">LINE</div>
+            <div class="list-line pc-s">LINE</div>
         </div>
     `;
     listDiv.innerHTML = headerHtml; // 使用 innerHTML 設置標題
@@ -108,7 +108,7 @@ function renderPage(page) {
         const nameDisplay = nameText + (isDeceased ? '*' : '');
         
         // 輔助函式：確保空值顯示 N/A
-        const getValue = (key) => member[key] || 'N/A';
+        const getValue = (key) => member[key] || ' ';
         
         const div = document.createElement("div");
         div.className = "list-r"; // 頂層 div 的 class
@@ -120,11 +120,11 @@ function renderPage(page) {
                     ${nameDisplay}
                 </a>
             </div>
-            <div class="list-com">${getValue("服務單位")}</div>
+            <div class="list-com pc-s">${getValue("服務單位")}</div>
             <div class="list-tel">${getValue("行動電話-帳")}</div>
-            <div class="list-addr">${getValue("通訊地址")}</div>
+            <div class="list-addr pc-s">${getValue("通訊地址")}</div>
             <div class="list-email">${getValue("E-mail")}</div>
-            <div class="list-line">${getValue("LINE")}</div>
+            <div class="list-line pc-">${getValue("LINE")}</div>
         `;
         
         listDiv.appendChild(div);

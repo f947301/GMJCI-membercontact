@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>會員詳情</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <a href="list.html">返回會員列表</a>
+    <h2 id="pageTitle" class="member-name-title"></h2>
+    <div id="personalDetail" class="detail-container">
+    </div>
+    <div id="message" class="error-message"></div>
+    <template id="photoTemplate">
+        <div class="photo-container">
+            <img src="" alt="會員照片" class="member-photo">
+            <hr class="photo-separator">
+        </div>
+    </template>
+    <template id="detailTemplate">
+        <div class="detail-item">
+            <div class="detail-label"></div>
+            <div class="detail-value"></div>
+        </div>
+    </template>
+    <script src="config.js"></script>
+    <script>
+    // 輔助函式：從 URL 獲取參數
+    function getUrlParameter(name) {
+        name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+        const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+        const results = regex.exec(location.search);
+        return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+    };
+
+    // 輔助函式：將 JS 物件轉換為 URL 查詢字串
+    function encodeData(data) {
+        return Object.keys(data).map(key =>
+            encodeURIComponent(key) + '=' + encodeURIComponent(data[key])
+        ).join('&');
+    }
+
+    /**
+     * 將經歷欄位的內容（預期以空格分隔）轉換為帶 <br> 的 HTML 內容。
+     */
+    function formatExperience(experienceStr) {
+        if (!experienceStr) return ''; // 如果沒有資料，返回空字串
+        let str = String(experienceStr).trim();
+        return str.replace(/\s+/g, '<br>');
+    }
+
+    async function fetchPersonalDetail() {
+        const phone = getUrlParameter('phone');
+        const token = localStorage.getItem('userToken');
+        const msgDiv = document.getElementById("message");
+        msgDiv.textContent = "";
+
+        if (!phone) {
+            msgDiv.textContent = "錯誤：URL 中缺少會員電話號碼。";
+            return;
+        }
+        if (!token) {
+            alert("請先登入！");
+            window.location.href = "login.html";
+            return;
+        }
+
+        // 確保頁面標題初始時顯示正確狀態
+        document.getElementById("pageTitle").textContent = "會員資料載入中...";
+
+        const payload = { action: "getDetail", phone: phone, token: token };
+        const fullUrl = GAS_URL + '?' + encodeData(payload);
+
+        try {
+            const resp = await fetch(fullUrl, { method: "GET" });
+
+            if (!resp.ok) { throw new Error(`HTTP 錯誤狀態: ${resp.status}`); }
+
+            const result = await resp.json();
+
+            if (result.success && result.detail) {
+                renderDetail(result.detail);
+            } else if (result.msg) {
+                msgDiv.textContent = "錯誤: " + result.msg;
+                document.getElementById("pageTitle").textContent = "資料載入失敗";
+                if (result.msg.includes("未授權")) {
+                    setTimeout(() => { window.location.href = "login.html"; }, 1500);
+                }
+            } else {
+                throw new Error("伺服器回傳格式錯誤或未提供會員詳情。");
+            }
+
+        } catch (err) {
+            msgDiv.textContent = "資料載入失敗: " + err.message;
+            document.getElementById("pageTitle").textContent = "資料載入失敗";
+            console.error(err);
+        }
+    }
+
+    // 🎯 修正後的渲染函式
+    // personal.html 中修正後的 renderDetail 函式
+    function renderDetail(member) {
+        const detailDiv = document.getElementById("personalDetail");
+        detailDiv.innerHTML = ''; // 清空內容
+
+        // 1. 定義預設圖片路徑
+        // 💡 請在這裡設置您的預設圖片檔案名稱和路徑
+        const DEFAULT_PHOTO_URL = 'default_photo.png';
+
+        // 從原始資料中取得欄位
+        const isDeceased = member["歿"] && String(member["歿"]).trim() !== '';
+        const rawName = member["姓名"] || '';
+        const nameDisplay = rawName + (isDeceased ? '*' : '');
+
+        // 設置主標題
+        document.getElementById("pageTitle").textContent = rawName ? `會員詳情：${nameDisplay}` : '會員詳情';
+
+        // 🎯 2. 處理照片區塊：如果照片URL是空字串，則使用預設圖片
+        let photoURL = member["照片URL"];
+
+        // 檢查從後端回傳的 Base64 連結是否為空
+        if (!photoURL || String(photoURL).trim() === '') {
+            photoURL = DEFAULT_PHOTO_URL;
+        }
+
+        // 無論是 Base64 連結還是預設圖片，我們都進行顯示
+        const photoTemplate = document.getElementById('photoTemplate').content.cloneNode(true);
+        const imgElement = photoTemplate.querySelector('img');
+
+        imgElement.src = photoURL;
+        imgElement.alt = rawName ? rawName + '的照片' : '會員照片';
+
+        detailDiv.appendChild(photoTemplate);
+
+
+        // 3. 定義【顯示標籤】與【GAS回傳資料鍵值】的對應關係 (保持不變)
+        const fieldsMapping = {
+            // 顯示標籤: [GAS資料鍵值, 額外處理函式 (選填)]
+            "姓名": ["姓名"],
+            "生日": ["生日"],
+            "職稱": ["職稱"], // 新增的欄位
+            "服務單位": ["服務單位"],
+            "行動電話": ["行動電話-帳"],
+            "住家電話": ["住家電話"],
+            "通訊地址": ["通訊地址"],
+            "E-mail": ["E-mail"],
+            "LINE": ["LINE"],
+            "經歷": ["經歷", formatExperience],
+        };
+
+        const itemTemplate = document.getElementById('detailTemplate');
+
+        for (const label in fieldsMapping) {
+            const [dataKey, formatter] = fieldsMapping[label];
+            let value = member[dataKey] || '';
+
+            if (formatter) {
+                value = formatter(value);
+            }
+
+            // 如果值是空字串，則不生成此項目的 HTML
+            if (!value || String(value).trim() === '') {
+                continue;
+            }
+
+            const clone = itemTemplate.content.cloneNode(true);
+
+            clone.querySelector('.detail-label').textContent = label + ':';
+
+            const valueElement = clone.querySelector('.detail-value');
+            valueElement.innerHTML = value;
+
+            if (label === '姓名' && isDeceased) {
+                valueElement.classList.add('deceased');
+            }
+
+            detailDiv.appendChild(clone);
+        }
+    }
+
+    // 頁面載入時執行
+    fetchPersonalDetail();
+    </script>
+</body>
+
+</html>

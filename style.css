@@ -16,7 +16,7 @@ body{
 }
 @media (max-width: 991px){
 	.pc-s{
-		display: none;
+		display: none !important;
 	}
 }
 
@@ -87,4 +87,21 @@ display: table-row;
 	display: flex;
 	justify-content: center;
 	width: 100%;
+}
+
+
+@media (max-width: 991px){
+	.list .list-r .list-name{
+	width: 25%;
+}
+
+.list .list-r .list-tel{
+	width: 40%;
+}
+
+
+.list .list-r .list-email{
+	width: 35%;
+}
+
 }
