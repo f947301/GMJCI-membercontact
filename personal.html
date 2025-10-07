@@ -39,8 +39,7 @@
             <div class="detail-value"></div>
         </div>
     </template>
-
-     <div class="btn-cus">
+    <div class="btn-cus">
         <a href="list.html" class="btn-cus">返回會員列表</a>
     </div>
     <script src="config.js"></script>
@@ -69,11 +68,12 @@
         return str.replace(/\s+/g, '<br>');
     }
 
+    // 修正後的 fetchPersonalDetail 函式
     async function fetchPersonalDetail() {
         const phone = getUrlParameter('phone');
         const token = localStorage.getItem('userToken');
         const msgDiv = document.getElementById("message");
-        msgDiv.textContent = "";
+        msgDiv.textContent = "資料載入中..."; // 🎯 修正: 使用 message 顯示載入狀態
 
         if (!phone) {
             msgDiv.textContent = "錯誤：URL 中缺少會員電話號碼。";
@@ -85,8 +85,8 @@
             return;
         }
 
-        // 確保頁面標題初始時顯示正確狀態
-        document.getElementById("pageTitle").textContent = "會員資料載入中...";
+        // 🎯 移除: document.getElementById("pageTitle").textContent = "會員資料載入中...";
+        // 因為此時 pageTitle 元素還不存在於 DOM 中。
 
         const payload = { action: "getDetail", phone: phone, token: token };
         const fullUrl = GAS_URL + '?' + encodeData(payload);
@@ -99,10 +99,11 @@
             const result = await resp.json();
 
             if (result.success && result.detail) {
+                msgDiv.textContent = ""; // 載入成功，清空訊息
                 renderDetail(result.detail);
             } else if (result.msg) {
                 msgDiv.textContent = "錯誤: " + result.msg;
-                document.getElementById("pageTitle").textContent = "資料載入失敗";
+                // 🎯 移除: document.getElementById("pageTitle").textContent = "資料載入失敗";
                 if (result.msg.includes("未授權")) {
                     setTimeout(() => { window.location.href = "login.html"; }, 1500);
                 }
@@ -112,11 +113,10 @@
 
         } catch (err) {
             msgDiv.textContent = "資料載入失敗: " + err.message;
-            document.getElementById("pageTitle").textContent = "資料載入失敗";
+            // 🎯 移除: document.getElementById("pageTitle").textContent = "資料載入失敗";
             console.error(err);
         }
     }
-
     // 🎯 修正後的渲染函式
     // personal.html 中修正後的 renderDetail 函式
     // personal.html 中修正後的 renderDetail 函式 (使用新模板和圖標結構)
