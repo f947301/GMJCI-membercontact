@@ -2,12 +2,23 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>會員列表</title>
-
+  <title>陽明山青商會-會員通訊錄</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h2>會員列表</h2>
-  <div id="memberList"></div>
+  <h2 style="text-align: center;">陽明山青商會-會員通訊錄</h2>
+  <div id="memberList">
+    <div class="list-r list-h">
+            <div class="list-name">
+                姓名
+            </div>
+            <div class="list-com">服務單位</div>
+            <div class="list-tel">行動電話</div>
+            <div class="list-addr">地址</div>
+            <div class="list-email">E-mail</div>
+            <div class="list-line">LINE</div>
+        </div>
+  </div>
   <div id="pagination"></div>
 <script src="config.js"></script> 
   <script>
@@ -66,46 +77,52 @@
       }
     }
 
-    function renderPage(page) {
-      const listDiv = document.getElementById("memberList");
-      listDiv.innerHTML = "";
+   // 替換您 list.html 中的 renderPage(page) 函式
+function renderPage(page) {
+    const listDiv = document.getElementById("memberList");
+    listDiv.innerHTML = "";
 
-      const start = (page - 1) * pageSize;
-      const end = start + pageSize;
-      const pageItems = members.slice(start, end);
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    const pageItems = members.slice(start, end);
 
-      pageItems.forEach(member => {
+    pageItems.forEach(member => {
         // 1. 獲取唯一的識別碼（電話號碼），用於傳遞給 personal.html
-        const phone = member["行動電話-帳"];
+        const phone = member["行動電話-帳"] || ''; // 確保是空字串而不是 null/undefined
         
         // 2. 檢查 "歿" 欄位，如果它有值，則在姓名後加 *
         const isDeceased = member["歿"] && String(member["歿"]).trim() !== '';
         const nameText = member["姓名"] || 'N/A';
         const nameDisplay = nameText + (isDeceased ? '*' : '');
         
-        const div = document.createElement("div");
+        // 輔助函式：確保 N/A 或空值不顯示 N/A，留給 CSS 控制
+        const getValue = (key) => member[key] || ' ';
         
-        // 🔹 核心修正：將姓名用 <a> 標籤包裝，並傳遞 phone 參數
+        // 🚀 關鍵修正：簡化結構，並加入 CSS Class
+        const div = document.createElement("div");
+        div.className = "list-r"; // 頂層 div 的 class
+
+        // 💡 內層使用 innerHTML 拼接，減少 DOM 操作
         div.innerHTML = `
-          <div>
-            <div>
+            <div class="list-name ${isDeceased ? 'deceased-member' : ''}">
                 <a href="personal.html?phone=${encodeURIComponent(phone)}">
                     姓名: ${nameDisplay}
                 </a>
             </div>
-            <div>服務單位: ${member["服務單位"] || 'N/A'}</div>
-            <div>行動電話: ${member["行動電話-帳"] || 'N/A'}</div>
-            <div>通訊地址: ${member["通訊地址"] || 'N/A'}</div>
-            <div>E-mail: ${member["E-mail"] || 'N/A'}</div>
-            <div>LINE: ${member["LINE"] || 'N/A'}</div>
-          </div>
-          <hr>
+            <div class="list-com">服務單位: ${getValue("服務單位")}</div>
+            <div class="list-tel">行動電話: ${getValue("行動電話-帳")}</div>
+            <div class="list-addr">通訊地址: ${getValue("通訊地址")}</div>
+            <div class="list-email">E-mail: ${getValue("E-mail")}</div>
+            <div class="list-line">LINE: ${getValue("LINE")}</div>
         `;
+        
         listDiv.appendChild(div);
-      });
+        
+        // 🎯 新增分隔線 <hr>
+    });
 
-      renderPagination();
-    }
+    renderPagination();
+}
 
     function renderPagination() {
       // ... (這部分邏輯保持不變) ...

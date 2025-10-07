@@ -1,0 +1,90 @@
+@charset "UTF-8";
+:root {
+    --mgreen: #05693D;
+    --havg: #02695E;
+}
+
+body{
+	font-size: 16px;
+}
+
+
+@media (min-width: 992px){
+	.mb-s{
+		display: none !important;
+	}
+}
+@media (max-width: 991px){
+	.pc-s{
+		display: none;
+	}
+}
+
+
+.list {
+	max-width: 1200px;
+	margin: 0 auto 20px;
+	width: 100%;
+	display: table;
+}
+
+.list .list-r{
+display: table-row;
+ align-items: stretch;
+    flex-wrap: wrap;
+    width: 100%;
+
+}
+
+.list .list-r:nth-child(even){
+	background-color: #f1f1f1;
+}
+
+.list .list-r div{
+	padding: 10px 5px;
+    display: table-cell;
+    vertical-align: middle;
+    box-sizing: border-box;
+    border-right: 1px solid #ddd;
+
+}
+.list .list-r div:last-child{
+	border-right: 0px;
+}
+.list .list-r.list-h div{
+	background-color: var(--havg);
+	text-align: center;
+	color: #fff;
+	font-weight: bold;
+}
+
+.list .list-r .list-name{
+	width: 15%;
+}
+
+.list .list-r .list-com{
+	width: 25%;
+}
+
+.list .list-r .list-tel{
+	width: 15%;
+}
+
+.list .list-r .list-addr{
+	width: 25%;
+}
+
+.list .list-r .list-email{
+	width: 10%;
+}
+
+.list .list-r .list-line{
+	width: 10%;
+}
+
+
+#pagination{
+	display: flex;
+	justify-content: center;
+	width: 100%;
+}
