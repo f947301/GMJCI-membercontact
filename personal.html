@@ -3,28 +3,46 @@
 
 <head>
     <meta charset="utf-8">
-    <title>會員詳情</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>陽明山青商會-會員通訊錄-詳細</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-    <a href="list.html">返回會員列表</a>
-    <h2 id="pageTitle" class="member-name-title"></h2>
-    <div id="personalDetail" class="detail-container">
+    <div id="personalDetail" class="detail-container con">
     </div>
     <div id="message" class="error-message"></div>
-    <template id="photoTemplate">
-        <div class="photo-container">
-            <img src="" alt="會員照片" class="member-photo">
-            <hr class="photo-separator">
+    <template id="photoNameTemplate">
+        <div class="per-r">
+            <div class="per-img">
+                <div class="photo-container img-wrap">
+                    <div class="img-item">
+                        <img src="" alt="會員照片" class="member-photo">
+                    </div>
+                    <h2 id="pageTitle" class="member-name-title"></h2>
+                </div>
+            </div>
+            <div class="per-contact"></div>
         </div>
     </template>
-    <template id="detailTemplate">
+    <template id="contactItemTemplate">
         <div class="detail-item">
-            <div class="detail-label"></div>
+            <div class="per-icon">
+                <img src="">
+            </div>
             <div class="detail-value"></div>
         </div>
     </template>
+    <template id="profileTemplate">
+        <div class="per-profile">
+            <h3>青商經歷</h3>
+            <div class="detail-value"></div>
+        </div>
+    </template>
+
+     <div class="btn-cus">
+        <a href="list.html" class="btn-cus">返回會員列表</a>
+    </div>
     <script src="config.js"></script>
     <script>
     // 輔助函式：從 URL 獲取參數
@@ -101,82 +119,87 @@
 
     // 🎯 修正後的渲染函式
     // personal.html 中修正後的 renderDetail 函式
+    // personal.html 中修正後的 renderDetail 函式 (使用新模板和圖標結構)
     function renderDetail(member) {
         const detailDiv = document.getElementById("personalDetail");
         detailDiv.innerHTML = ''; // 清空內容
 
-        // 1. 定義預設圖片路徑
-        // 💡 請在這裡設置您的預設圖片檔案名稱和路徑
-        const DEFAULT_PHOTO_URL = 'default_photo.png';
-
-        // 從原始資料中取得欄位
+        // 1. 基本數據與設定
+        const DEFAULT_PHOTO_URL = 'assets/profile.png'; // 💡 假設您的預設圖在 assets/profile.png
         const isDeceased = member["歿"] && String(member["歿"]).trim() !== '';
         const rawName = member["姓名"] || '';
         const nameDisplay = rawName + (isDeceased ? '*' : '');
 
-        // 設置主標題
-        document.getElementById("pageTitle").textContent = rawName ? `會員詳情：${nameDisplay}` : '會員詳情';
+        // 2. 準備照片/姓名區塊
+        const photoNameTemplate = document.getElementById('photoNameTemplate').content.cloneNode(true);
+        const perContactDiv = photoNameTemplate.querySelector('.per-contact'); // 抓取聯繫資訊的容器
 
-        // 🎯 2. 處理照片區塊：如果照片URL是空字串，則使用預設圖片
+        // 設置姓名和死亡標記
+        const pageTitleElement = photoNameTemplate.querySelector('#pageTitle');
+        pageTitleElement.textContent = nameDisplay;
+        if (isDeceased) {
+            pageTitleElement.classList.add('deceased');
+        }
+
+        // 設置圖片 (Base64 或預設圖)
         let photoURL = member["照片URL"];
-
-        // 檢查從後端回傳的 Base64 連結是否為空
         if (!photoURL || String(photoURL).trim() === '') {
             photoURL = DEFAULT_PHOTO_URL;
         }
-
-        // 無論是 Base64 連結還是預設圖片，我們都進行顯示
-        const photoTemplate = document.getElementById('photoTemplate').content.cloneNode(true);
-        const imgElement = photoTemplate.querySelector('img');
-
+        const imgElement = photoNameTemplate.querySelector('img');
         imgElement.src = photoURL;
         imgElement.alt = rawName ? rawName + '的照片' : '會員照片';
 
-        detailDiv.appendChild(photoTemplate);
 
+        // 3. 定義聯繫資訊欄位、圖標路徑與 GAS 鍵值
+        // 💡 假設您的圖標在 assets/ 目錄下
+        const contactFields = [
+            // [顯示標籤, GAS資料鍵值, 圖標檔名, 額外處理函式]
+            ["生日", "生日", "cake.png"],
+            ["行動電話", "行動電話-帳", "smartphone.png"],
+            ["住家電話", "住家電話", "phone-call.png"],
+            // 服務單位和職稱需合併處理，故不在這裡列出
+            ["通訊地址", "通訊地址", "location.png"],
+            ["E-mail", "E-mail", "email.png"],
+            ["LINE", "LINE", "line.png"],
+        ];
 
-        // 3. 定義【顯示標籤】與【GAS回傳資料鍵值】的對應關係 (保持不變)
-        const fieldsMapping = {
-            // 顯示標籤: [GAS資料鍵值, 額外處理函式 (選填)]
-            "姓名": ["姓名"],
-            "生日": ["生日"],
-            "職稱": ["職稱"], // 新增的欄位
-            "服務單位": ["服務單位"],
-            "行動電話": ["行動電話-帳"],
-            "住家電話": ["住家電話"],
-            "通訊地址": ["通訊地址"],
-            "E-mail": ["E-mail"],
-            "LINE": ["LINE"],
-            "經歷": ["經歷", formatExperience],
-        };
+        const contactItemTemplate = document.getElementById('contactItemTemplate');
 
-        const itemTemplate = document.getElementById('detailTemplate');
-
-        for (const label in fieldsMapping) {
-            const [dataKey, formatter] = fieldsMapping[label];
-            let value = member[dataKey] || '';
-
-            if (formatter) {
-                value = formatter(value);
+        // 渲染聯繫資訊 (單獨項)
+        contactFields.forEach(([label, dataKey, iconFile]) => {
+            const value = member[dataKey] || '';
+            if (value && String(value).trim() !== '') {
+                const clone = contactItemTemplate.content.cloneNode(true);
+                clone.querySelector('.per-icon img').src = `assets/${iconFile}`;
+                clone.querySelector('.detail-value').innerHTML = value;
+                perContactDiv.appendChild(clone);
             }
+        });
 
-            // 如果值是空字串，則不生成此項目的 HTML
-            if (!value || String(value).trim() === '') {
-                continue;
-            }
+        // 渲染 "服務單位 + 職稱" (合併項)
+        const company = member["服務單位"] || '';
+        const jobTitle = member["職稱"] || '';
+        let jobDisplay = '';
 
-            const clone = itemTemplate.content.cloneNode(true);
+        if (company || jobTitle) {
+            jobDisplay = (company ? company : '') + (company && jobTitle ? ' ' : '') + (jobTitle ? jobTitle : '');
 
-            clone.querySelector('.detail-label').textContent = label + ':';
+            const clone = contactItemTemplate.content.cloneNode(true);
+            clone.querySelector('.per-icon img').src = `assets/suitcase.png`;
+            clone.querySelector('.detail-value').innerHTML = jobDisplay;
+            perContactDiv.appendChild(clone);
+        }
 
-            const valueElement = clone.querySelector('.detail-value');
-            valueElement.innerHTML = value;
+        // 4. 渲染經歷區塊
+        const experienceValue = formatExperience(member["經歷"]);
 
-            if (label === '姓名' && isDeceased) {
-                valueElement.classList.add('deceased');
-            }
+        detailDiv.appendChild(photoNameTemplate); // 將照片/聯絡區塊加入到 DOM
 
-            detailDiv.appendChild(clone);
+        if (experienceValue && experienceValue.trim() !== '') {
+            const profileTemplate = document.getElementById('profileTemplate').content.cloneNode(true);
+            profileTemplate.querySelector('.detail-value').innerHTML = experienceValue;
+            detailDiv.appendChild(profileTemplate);
         }
     }
 
