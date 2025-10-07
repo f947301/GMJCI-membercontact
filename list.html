@@ -7,7 +7,7 @@
 </head>
 <body>
   <h2 style="text-align: center;">陽明山青商會-會員通訊錄</h2>
-  <div id="memberList">
+  <div id="memberList" class="list">
     <div class="list-r list-h">
             <div class="list-name">
                 姓名
@@ -77,36 +77,47 @@
       }
     }
 
-   // 替換您 list.html 中的 renderPage(page) 函式
+// 替換您 list.html 中的 renderPage(page) 函式
 function renderPage(page) {
     const listDiv = document.getElementById("memberList");
-    listDiv.innerHTML = "";
+    listDiv.innerHTML = ""; // 清空現有內容
 
+    // 🎯 1. 插入標題列 HTML 結構
+    const headerHtml = `
+        <div class="list-r list-h">
+            <div class="list-name">姓名</div>
+            <div class="list-com">服務單位</div>
+            <div class="list-tel">行動電話</div>
+            <div class="list-addr">通訊地址</div>
+            <div class="list-email">E-mail</div>
+            <div class="list-line">LINE</div>
+        </div>
+    `;
+    listDiv.innerHTML = headerHtml; // 使用 innerHTML 設置標題
+
+    // 2. 計算分頁範圍
     const start = (page - 1) * pageSize;
     const end = start + pageSize;
     const pageItems = members.slice(start, end);
 
+    // 3. 渲染會員資料
     pageItems.forEach(member => {
-        // 1. 獲取唯一的識別碼（電話號碼），用於傳遞給 personal.html
-        const phone = member["行動電話-帳"] || ''; // 確保是空字串而不是 null/undefined
-        
-        // 2. 檢查 "歿" 欄位，如果它有值，則在姓名後加 *
+        const phone = member["行動電話-帳"] || ''; 
         const isDeceased = member["歿"] && String(member["歿"]).trim() !== '';
-        const nameText = member["姓名"] || 'N/A';
+        const nameText = member["姓名"] || ''; // 姓名欄位不再需要 "姓名:"
         const nameDisplay = nameText + (isDeceased ? '*' : '');
         
-        // 輔助函式：確保 N/A 或空值不顯示 N/A，留給 CSS 控制
-        const getValue = (key) => member[key] || ' ';
+        // 輔助函式：確保空值顯示 N/A
+        const getValue = (key) => member[key] || 'N/A';
         
-        // 🚀 關鍵修正：簡化結構，並加入 CSS Class
         const div = document.createElement("div");
         div.className = "list-r"; // 頂層 div 的 class
 
-        // 💡 內層使用 innerHTML 拼接，減少 DOM 操作
+        // 🚀 關鍵修正：內容移除標籤文字 (例如 "姓名:" 或 "服務單位:")
         div.innerHTML = `
             <div class="list-name ${isDeceased ? 'deceased-member' : ''}">
                 <a href="personal.html?phone=${encodeURIComponent(phone)}">
-                    姓名: ${nameDisplay}
+                    ${nameDisplay}
                 </a>
             </div>
             <div class="list-com">${getValue("服務單位")}</div>
@@ -118,7 +129,10 @@ function renderPage(page) {
         
         listDiv.appendChild(div);
         
-        // 🎯 新增分隔線 <hr>
+        // 移除 <hr>，通常在列表表格結構中，分隔線會由 CSS border 來處理。
+        // 如果您仍需要 <hr>，請在這裡取消註解：
+        // const hr = document.createElement("hr");
+        // listDiv.appendChild(hr);
     });
 
     renderPagination();
