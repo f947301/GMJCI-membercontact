@@ -50,18 +50,21 @@ html {
 
 
 .log-bg{
-	background: #2A7B9B;
-background: linear-gradient(90deg,rgba(42, 123, 155, 1) 0%, rgba(87, 199, 133, 1) 50%, rgba(237, 221, 83, 1) 100%);
+background-image: url(assets/login-bg.jpg);
 position: relative;
+background-size: cover;
+background-position: center;
 min-height: 600px;
+background-repeat: no-repeat;
 }
+
 
 .login-con{
 	position: absolute;
 	top: 50%;
 	left: 50%;
 	transform: translate(-50%,-50%);
-	background-color: #fff;
+	background-color: #ffffff99;
 	width: 300px;
 	padding: 25px;
 
@@ -229,15 +232,18 @@ display: flex;
 	padding: 10px 25px;
 	background-color: var(--mgreen);
 	color: #fff;
+	border: 0px;
+	border-radius: 5px;
 }
 
 
 .input-cus{
 	border-radius: 5px;
 	line-height: 1.5em;
-	height: 1.5em;
+	height: 2em;
 	padding: 2px;
 	border: 1px solid #ddd;
+	margin-top: 5px;
 
 
 }

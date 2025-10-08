@@ -176,7 +176,7 @@ function checkMemberLogin(phone, birthday) {
     for (let i=1;i<paymentData.length;i++){
         if ((paymentData[i][0]||"") === memberName) { payRow = paymentData[i]; break; }
     }
-    if (!payRow) return { success:false, msg: "找不到繳費紀錄" };
+    if (!payRow) return { success:false, msg: "找不到繳費紀錄，請聯繫秘書處確認" };
 
     const yearNow = new Date().getFullYear();
     const yearPrev = yearNow - 1;
@@ -186,7 +186,7 @@ function checkMemberLogin(phone, birthday) {
         const v = payRow[j];
         if ((yearHdr===yearNow||yearHdr===yearPrev) && v && String(v).trim()!=="") { ok = true; break; }
     }
-    if(!ok) return { success:false, msg: "未繳納當前年度或前一年度會費，無法登入" };
+    if(!ok) return { success:false, msg: "未繳納當前年度或前一年度會費，無法登入，請聯繫秘書處確認" };
 
     return { success:true, msg:"登入成功", name: memberName };
 }
@@ -258,7 +258,7 @@ function getMemberDetail(phone) {
 
     // 抓取您要求的欄位列表
     const fieldsToReturn = [
-        "姓名", "生日", "服務單位", "行動電話", "住家電話", "職稱", 
+        "姓名", "生日", "服務單位", "行動電話-帳", "住家電話", "職稱", 
         "通訊地址", "E-mail", "LINE", "經歷", "歿", "照片連結"
     ];
     
