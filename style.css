@@ -53,6 +53,7 @@ html {
 	background: #2A7B9B;
 background: linear-gradient(90deg,rgba(42, 123, 155, 1) 0%, rgba(87, 199, 133, 1) 50%, rgba(237, 221, 83, 1) 100%);
 position: relative;
+min-height: 600px;
 }
 
 .login-con{
@@ -60,6 +61,7 @@ position: relative;
 	top: 50%;
 	left: 50%;
 	transform: translate(-50%,-50%);
+	background-color: #fff;
 
 }
 
@@ -220,7 +222,7 @@ display: flex;
 }
 
 .btn-cus a,
-.btn-cus buttom{
+.btn-cus button{
 	display: inline-block;
 	padding: 10px 25px;
 	background-color: var(--mgreen);
@@ -231,5 +233,5 @@ display: flex;
 .input-cus{
 	border-radius: 15px;
 	line-height: 1.5em;
-	
+
 }
