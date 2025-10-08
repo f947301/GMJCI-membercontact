@@ -120,18 +120,20 @@
     // 🎯 修正後的渲染函式
     // personal.html 中修正後的 renderDetail 函式
     // personal.html 中修正後的 renderDetail 函式 (使用新模板和圖標結構)
+    // personal.html 中修正後的 renderDetail 函式 (將經歷移入 per-r 容器)
     function renderDetail(member) {
         const detailDiv = document.getElementById("personalDetail");
         detailDiv.innerHTML = ''; // 清空內容
 
         // 1. 基本數據與設定
-        const DEFAULT_PHOTO_URL = 'assets/profile.png'; // 💡 假設您的預設圖在 assets/profile.png
+        const DEFAULT_PHOTO_URL = 'assets/profile.png';
         const isDeceased = member["歿"] && String(member["歿"]).trim() !== '';
         const rawName = member["姓名"] || '';
         const nameDisplay = rawName + (isDeceased ? '*' : '');
 
-        // 2. 準備照片/姓名區塊
+        // 2. 準備照片/姓名區塊 (photoNameTemplate 包含頂層 per-r 和 per-img)
         const photoNameTemplate = document.getElementById('photoNameTemplate').content.cloneNode(true);
+        const perRDiv = photoNameTemplate.querySelector('.per-r'); // 🎯 取得頂層 .per-r 容器
         const perContactDiv = photoNameTemplate.querySelector('.per-contact'); // 抓取聯繫資訊的容器
 
         // 設置姓名和死亡標記
@@ -152,13 +154,10 @@
 
 
         // 3. 定義聯繫資訊欄位、圖標路徑與 GAS 鍵值
-        // 💡 假設您的圖標在 assets/ 目錄下
         const contactFields = [
-            // [顯示標籤, GAS資料鍵值, 圖標檔名, 額外處理函式]
             ["生日", "生日", "cake.png"],
             ["行動電話", "行動電話-帳", "smartphone.png"],
             ["住家電話", "住家電話", "phone-call.png"],
-            // 服務單位和職稱需合併處理，故不在這裡列出
             ["通訊地址", "通訊地址", "location.png"],
             ["E-mail", "E-mail", "email.png"],
             ["LINE", "LINE", "line.png"],
@@ -194,13 +193,17 @@
         // 4. 渲染經歷區塊
         const experienceValue = formatExperience(member["經歷"]);
 
-        detailDiv.appendChild(photoNameTemplate); // 將照片/聯絡區塊加入到 DOM
-
+        // 🚀 關鍵修正：將經歷模板 clone 後，追加到 .per-r 容器內部
         if (experienceValue && experienceValue.trim() !== '') {
             const profileTemplate = document.getElementById('profileTemplate').content.cloneNode(true);
             profileTemplate.querySelector('.detail-value').innerHTML = experienceValue;
-            detailDiv.appendChild(profileTemplate);
+
+            // 🎯 經歷區塊現在是 per-r 的子元素，跟 per-img 和 per-contact 平級
+            perRDiv.appendChild(profileTemplate);
         }
+
+        // 將包含所有內容的 per-r 容器，一次性加入到 detailDiv
+        detailDiv.appendChild(photoNameTemplate);
     }
 
     // 頁面載入時執行

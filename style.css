@@ -49,6 +49,20 @@ html {
 }
 
 
+.log-bg{
+	background: #2A7B9B;
+background: linear-gradient(90deg,rgba(42, 123, 155, 1) 0%, rgba(87, 199, 133, 1) 50%, rgba(237, 221, 83, 1) 100%);
+position: relative;
+}
+
+.login-con{
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%,-50%);
+
+}
+
 .list {
 	max-width: 1200px;
 	margin: 0 auto 20px;
@@ -205,9 +219,17 @@ display: flex;
 	margin-top: 20px;
 }
 
-.btn-cus a{
+.btn-cus a,
+.btn-cus buttom{
 	display: inline-block;
 	padding: 10px 25px;
 	background-color: var(--mgreen);
 	color: #fff;
+}
+
+
+.input-cus{
+	border-radius: 15px;
+	line-height: 1.5em;
+	
 }

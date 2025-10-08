@@ -1,21 +1,27 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-  <meta charset="utf-8">
-  <title>會員登入</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="style.css">
+    <meta charset="utf-8">
+    <title>陽明山青商會-會員通訊錄</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
 </head>
-<body>
-  <h2>會員登入</h2>
-  <form id="loginForm">
-    <input id="phone" placeholder="請輸入行動電話"><br>
-    <input id="birthday" placeholder="請輸入生日(例如0640515)"><br>
-    <button type="submit">登入</button>
-  </form>
-  <div id="loginResult" style="margin-top:12px;"></div>
-<script src="config.js"></script> 
-<script>
+
+<body class="log-bg">
+    <h2 style="text-align: center;">陽明山青商會-會員通訊錄</h2>
+    <div class="login-con">
+        <form id="loginForm">
+            <input class="input-cus" id="phone" placeholder="請輸入行動電話"><br>
+            <input class="input-cus" id="birthday" placeholder="請輸入生日(例如0640515)"><br>
+            <div class="btn-cus">
+                <button type="submit" class="">登入</button>
+            </div>
+        </form>
+        <div id="loginResult" style="margin-top:12px;"></div>
+    </div>
+    <script src="config.js"></script>
+    <script>
     // ------------------------------------------------------------------
     // 基礎變數與設定
     // ------------------------------------------------------------------
@@ -23,9 +29,9 @@
     const resultDiv = document.getElementById('loginResult');
     const LOADING_TEXT = '處理中...';
     // 💡 請替換成您的實際 /exec URL
-    
+
     function encodeData(data) {
-        return Object.keys(data).map(key => 
+        return Object.keys(data).map(key =>
             encodeURIComponent(key) + '=' + encodeURIComponent(data[key])
         ).join('&');
     }
@@ -33,41 +39,41 @@
     // ------------------------------------------------------------------
     // 表單提交事件處理 (使用 Fetch API)
     // ------------------------------------------------------------------
-    form.addEventListener('submit', async function(e){
+    form.addEventListener('submit', async function(e) {
         e.preventDefault();
-        
+
         const submitButton = form.querySelector('button[type="submit"]');
         if (!submitButton) {
-             resultDiv.textContent = "錯誤：找不到提交按鈕。";
-             return; 
+            resultDiv.textContent = "錯誤：找不到提交按鈕。";
+            return;
         }
 
         submitButton.disabled = true;
         resultDiv.textContent = LOADING_TEXT;
-        
+
         const phone = document.getElementById('phone').value.trim();
         const birthday = document.getElementById('birthday').value.trim();
 
         // 構建請求參數 (不再包含 callback 參數！)
-        const payload = { 
-            action: "login", 
-            phone, 
+        const payload = {
+            action: "login",
+            phone,
             birthday
         };
-        
+
         const fullUrl = GAS_URL + '?' + encodeData(payload);
 
         try {
             // 🚀 使用 Fetch API 發送標準 GET 請求，繞過瀏覽器對動態腳本的限制
             const response = await fetch(fullUrl, { method: 'GET' });
-            
+
             if (!response.ok) {
                 throw new Error(`伺服器錯誤: HTTP ${response.status}`);
             }
 
             // 讀取並解析伺服器回傳的 JSON 數據
-            const data = await response.json(); 
-            
+            const data = await response.json();
+
             // ----------------------------------------------
             // 處理回傳結果 (登入成功或失敗)
             // ----------------------------------------------
@@ -76,7 +82,7 @@
                 localStorage.setItem('userToken', data.token);
                 const successMsg = data.msg || '登入成功';
                 resultDiv.textContent = successMsg + '，正在跳轉至會員列表...';
-                
+
                 setTimeout(() => {
                     window.location.href = "list.html";
                 }, 1500);
@@ -96,6 +102,7 @@
             submitButton.disabled = false;
         }
     });
-</script>
+    </script>
 </body>
+
 </html>
